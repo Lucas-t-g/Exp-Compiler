@@ -10,32 +10,40 @@
 
 .method public static main([Ljava/lang/String;)V
 
+    ldc 2
+    istore 1 
+
+    getstatic java/lang/System/out Ljava/io/PrintStream;
+    iload  1
+    ldc 5
+    imul
+    invokevirtual java/io/PrintStream/println(I)V
+
+    iload  1
+    ldc 2
+    idiv
+    istore 2 
+
     getstatic java/lang/System/out Ljava/io/PrintStream;
     ldc 4
+    iload  1
     ldc 3
+    iload  2
     isub
-    ldc 2
-    isub
-    ldc 1
-    isub
+    imul
+    iadd
     invokevirtual java/io/PrintStream/println(I)V
 
-    getstatic java/lang/System/out Ljava/io/PrintStream;
-    ldc 8
-    ldc 4
-    idiv
-    ldc 2
-    idiv
-    invokevirtual java/io/PrintStream/println(I)V
+    ldc 6
+    istore 1 
 
     getstatic java/lang/System/out Ljava/io/PrintStream;
-    ldc 987
-    ldc 654
-    irem
-    ldc 321
-    irem
+    iload  1
     invokevirtual java/io/PrintStream/println(I)V
 
     return
 .limit stack 10
+.limit locals 3
 .end method
+
+; symbol_table: ['args', 'x', 'y']
