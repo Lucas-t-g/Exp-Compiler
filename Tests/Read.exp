@@ -1,0 +1,3 @@
+z = read_int()
+z = z*3
+print(z)

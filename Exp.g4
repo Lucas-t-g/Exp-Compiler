@@ -8,6 +8,17 @@ import sys
 
 symbol_table = []
 symbol_table_use = []
+
+stack_cur = 0
+stack_max = 0
+
+def emit(comand, stack_att=0):
+    global stack_cur, stack_max
+    stack_cur += stack_att
+    if stack_cur > stack_max:
+        stack_max = stack_cur
+    print("    "+comand)
+
 }
 
 
@@ -23,9 +34,11 @@ CL_PAR: ')' ;
 MINUS : '-' ;
 OVER  : '/' ;
 REM   : '%' ;
-ATTRIB : '=' ;
+ATTRIB: '=' ;
+COMMA : ',' ;
 
 PRINT : 'print' ;
+READ_INT: 'read_int';
 
 NUMBER: '0'..'9'+ ;
 
@@ -56,7 +69,7 @@ symbol_table_use.append(1)
     (statement )+
     {
 print('    return')
-print('.limit stack 10')
+print('.limit stack', stack_max)
 if len(symbol_table) > 0 : print('.limit locals', len(symbol_table))
 print('.end method')
 print('\n; symbol_table:', symbol_table)
@@ -74,11 +87,25 @@ statement: st_print | st_attrib ;
 
 st_print: PRINT OP_PAR
     {
-print('    getstatic java/lang/System/out Ljava/io/PrintStream;')
+emit('getstatic java/lang/System/out Ljava/io/PrintStream;', +1)
     }
-    expression CL_PAR
+    expression 
     {
-print('    invokevirtual java/io/PrintStream/println(I)V\n')
+emit('invokevirtual java/io/PrintStream/print(I)V\n', -2)
+    }
+    ( COMMA
+    {
+emit('getstatic java/lang/System/out Ljava/io/PrintStream;', +1)
+    }
+    expression
+    {
+emit('invokevirtual java/io/PrintStream/print(I)V\n', -2)
+    }
+    )*
+    CL_PAR
+    {
+emit('getstatic java/lang/System/out Ljava/io/PrintStream;', +1)
+emit('invokevirtual java/io/PrintStream/println()V\n', -1)
     }
     ;
 
@@ -91,30 +118,30 @@ if $NAME.text not in symbol_table:
 
 # 2. encontrar o índice de $NAME.text e gerar o bytecode 'istore index'
 index = symbol_table.index($NAME.text)
-print("    istore", index, '\n')
+emit("istore "+ str(index) +'\n', -1)
     }
     ;
 
 expression: term ( op = (PLUS | MINUS) term
     {
-if $op.type == ExpParser.PLUS  : print('    iadd')
-if $op.type == ExpParser.MINUS : print('    isub')
+if $op.type == ExpParser.PLUS  : emit('iadd', -1)
+if $op.type == ExpParser.MINUS : emit('isub', -1)
     }
     )*
     ;
 
 term: factor ( op = (TIMES | OVER | REM ) factor
     {
-if $op.type == ExpParser.TIMES : print('    imul')
-if $op.type == ExpParser.OVER  : print('    idiv')
-if $op.type == ExpParser.REM   : print('    irem')
+if $op.type == ExpParser.TIMES : emit('imul', -1)
+if $op.type == ExpParser.OVER  : emit('idiv', -1)
+if $op.type == ExpParser.REM   : emit('irem', -1)
     }
     )*
     ;
 
 factor: NUMBER
     {
-print('    ldc ' + $NUMBER.text)
+emit('ldc ' + $NUMBER.text, +1)
     }
     | OP_PAR expression CL_PAR
     | NAME
@@ -127,6 +154,10 @@ if $NAME.text not in symbol_table:
 else:
     index = symbol_table.index($NAME.text)
     symbol_table_use[index] += 1
-    print("    iload ", index)
+    emit("iload "+ str(index), +1)
+    }
+    | READ_INT OP_PAR CL_PAR
+    {
+emit("invokestatic Runtime/readInt()I", +1)
     }
     ;
