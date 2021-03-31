@@ -2,13 +2,11 @@
 
 a = 2
 b = a * 3
-c = a * 4
-b = a * 5
 print(a)
 
 # error: 'b' is defined but never used
 
-# symbol table: [args, a, b]
-# used vars: [True, True, False]
-# number of locals: 3
+# number of locals: 2
+# symbol table: ['a', 'b']
+# used vars: [True, False]
 
