@@ -8,6 +8,9 @@ symbol_table_use = []
 stack_cur = 0
 stack_max = 0
 if_counter = 0
+while_counter = 0
+current_begin_while = []
+current_end_while = []
 
 def emit(comand, stack_att=0, initLN="    ", endLN='\n'):
     global stack_cur, stack_max
@@ -36,15 +39,17 @@ public class ExpParser extends Parser {
 	public static final int
 		COMMENT=1, SPACE=2, PLUS=3, TIMES=4, MINUS=5, OVER=6, REM=7, OP_PAR=8, 
 		CL_PAR=9, ATTRIB=10, COMMA=11, OP_CUR=12, CL_CUR=13, EQ=14, NE=15, GT=16, 
-		GE=17, LT=18, LE=19, PRINT=20, READ_INT=21, IF=22, NUMBER=23, NAME=24;
+		GE=17, LT=18, LE=19, PRINT=20, READ_INT=21, IF=22, WHILE=23, BREAK=24, 
+		CONTINUE=25, NUMBER=26, NAME=27;
 	public static final int
 		RULE_program = 0, RULE_main = 1, RULE_statement = 2, RULE_st_print = 3, 
-		RULE_st_attrib = 4, RULE_st_if = 5, RULE_comparison = 6, RULE_expression = 7, 
-		RULE_term = 8, RULE_factor = 9;
+		RULE_st_attrib = 4, RULE_st_if = 5, RULE_st_while = 6, RULE_st_break = 7, 
+		RULE_st_continue = 8, RULE_comparison = 9, RULE_expression = 10, RULE_term = 11, 
+		RULE_factor = 12;
 	private static String[] makeRuleNames() {
 		return new String[] {
-			"program", "main", "statement", "st_print", "st_attrib", "st_if", "comparison", 
-			"expression", "term", "factor"
+			"program", "main", "statement", "st_print", "st_attrib", "st_if", "st_while", 
+			"st_break", "st_continue", "comparison", "expression", "term", "factor"
 		};
 	}
 	public static final String[] ruleNames = makeRuleNames();
@@ -53,7 +58,7 @@ public class ExpParser extends Parser {
 		return new String[] {
 			null, null, null, "'+'", "'*'", "'-'", "'/'", "'%'", "'('", "')'", "'='", 
 			"','", "'{'", "'}'", "'=='", "'!='", "'>'", "'>='", "'<'", "'<='", "'print'", 
-			"'read_int'", "'if'"
+			"'read_int'", "'if'", "'while'", "'break'", "'continue'"
 		};
 	}
 	private static final String[] _LITERAL_NAMES = makeLiteralNames();
@@ -61,7 +66,8 @@ public class ExpParser extends Parser {
 		return new String[] {
 			null, "COMMENT", "SPACE", "PLUS", "TIMES", "MINUS", "OVER", "REM", "OP_PAR", 
 			"CL_PAR", "ATTRIB", "COMMA", "OP_CUR", "CL_CUR", "EQ", "NE", "GT", "GE", 
-			"LT", "LE", "PRINT", "READ_INT", "IF", "NUMBER", "NAME"
+			"LT", "LE", "PRINT", "READ_INT", "IF", "WHILE", "BREAK", "CONTINUE", 
+			"NUMBER", "NAME"
 		};
 	}
 	private static final String[] _SYMBOLIC_NAMES = makeSymbolicNames();
@@ -141,7 +147,7 @@ public class ExpParser extends Parser {
 			print('    return')
 			print('.end method\n')
 			    
-			setState(21);
+			setState(27);
 			main();
 			}
 		}
@@ -181,20 +187,20 @@ public class ExpParser extends Parser {
 			symbol_table.append('args')
 			symbol_table_use.append(1)
 			    
-			setState(25); 
+			setState(31); 
 			_errHandler.sync(this);
 			_la = _input.LA(1);
 			do {
 				{
 				{
-				setState(24);
+				setState(30);
 				statement();
 				}
 				}
-				setState(27); 
+				setState(33); 
 				_errHandler.sync(this);
 				_la = _input.LA(1);
-			} while ( (((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << PRINT) | (1L << IF) | (1L << NAME))) != 0) );
+			} while ( (((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << PRINT) | (1L << IF) | (1L << WHILE) | (1L << BREAK) | (1L << CONTINUE) | (1L << NAME))) != 0) );
 
 			print('    return')
 			print('.limit stack', stack_max)
@@ -232,6 +238,15 @@ public class ExpParser extends Parser {
 		public St_ifContext st_if() {
 			return getRuleContext(St_ifContext.class,0);
 		}
+		public St_whileContext st_while() {
+			return getRuleContext(St_whileContext.class,0);
+		}
+		public St_breakContext st_break() {
+			return getRuleContext(St_breakContext.class,0);
+		}
+		public St_continueContext st_continue() {
+			return getRuleContext(St_continueContext.class,0);
+		}
 		public StatementContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
 		}
@@ -242,28 +257,49 @@ public class ExpParser extends Parser {
 		StatementContext _localctx = new StatementContext(_ctx, getState());
 		enterRule(_localctx, 4, RULE_statement);
 		try {
-			setState(34);
+			setState(43);
 			_errHandler.sync(this);
 			switch (_input.LA(1)) {
 			case PRINT:
 				enterOuterAlt(_localctx, 1);
 				{
-				setState(31);
+				setState(37);
 				st_print();
 				}
 				break;
 			case NAME:
 				enterOuterAlt(_localctx, 2);
 				{
-				setState(32);
+				setState(38);
 				st_attrib();
 				}
 				break;
 			case IF:
 				enterOuterAlt(_localctx, 3);
 				{
-				setState(33);
+				setState(39);
 				st_if();
+				}
+				break;
+			case WHILE:
+				enterOuterAlt(_localctx, 4);
+				{
+				setState(40);
+				st_while();
+				}
+				break;
+			case BREAK:
+				enterOuterAlt(_localctx, 5);
+				{
+				setState(41);
+				st_break();
+				}
+				break;
+			case CONTINUE:
+				enterOuterAlt(_localctx, 6);
+				{
+				setState(42);
+				st_continue();
 				}
 				break;
 			default:
@@ -308,41 +344,41 @@ public class ExpParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(36);
+			setState(45);
 			match(PRINT);
-			setState(37);
+			setState(46);
 			match(OP_PAR);
 
 			emit('getstatic java/lang/System/out Ljava/io/PrintStream;', +1)
 			    
-			setState(39);
+			setState(48);
 			expression();
 
 			emit('invokevirtual java/io/PrintStream/print(I)V\n', -2)
 			    
-			setState(48);
+			setState(57);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
 			while (_la==COMMA) {
 				{
 				{
-				setState(41);
+				setState(50);
 				match(COMMA);
 
 				emit('getstatic java/lang/System/out Ljava/io/PrintStream;', +1)
 				    
-				setState(43);
+				setState(52);
 				expression();
 
 				emit('invokevirtual java/io/PrintStream/print(I)V\n', -2)
 				    
 				}
 				}
-				setState(50);
+				setState(59);
 				_errHandler.sync(this);
 				_la = _input.LA(1);
 			}
-			setState(51);
+			setState(60);
 			match(CL_PAR);
 
 			emit('getstatic java/lang/System/out Ljava/io/PrintStream;', +1)
@@ -380,11 +416,11 @@ public class ExpParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(54);
+			setState(63);
 			((St_attribContext)_localctx).NAME = match(NAME);
-			setState(55);
+			setState(64);
 			match(ATTRIB);
-			setState(56);
+			setState(65);
 			expression();
 
 			# 1. testar se a varialvel name já existe:  se não existir inclui (((St_attribContext)_localctx).NAME!=null?((St_attribContext)_localctx).NAME.getText():null) na symbol_table
@@ -435,36 +471,194 @@ public class ExpParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(59);
+			setState(68);
 			match(IF);
-			setState(60);
+			setState(69);
 			comparison();
 
 			global if_counter
 			if_counter_local = if_counter
 			if_counter += 1
-			emit("NOT_IF_" + str(if_counter_local), -2, initLN='')
+			emit("NOT_IF_" + str(if_counter_local), initLN='')
 			    
-			setState(62);
+			setState(71);
 			match(OP_CUR);
-			setState(64); 
+			setState(73); 
 			_errHandler.sync(this);
 			_la = _input.LA(1);
 			do {
 				{
 				{
-				setState(63);
+				setState(72);
 				statement();
 				}
 				}
-				setState(66); 
+				setState(75); 
 				_errHandler.sync(this);
 				_la = _input.LA(1);
-			} while ( (((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << PRINT) | (1L << IF) | (1L << NAME))) != 0) );
-			setState(68);
+			} while ( (((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << PRINT) | (1L << IF) | (1L << WHILE) | (1L << BREAK) | (1L << CONTINUE) | (1L << NAME))) != 0) );
+			setState(77);
 			match(CL_CUR);
 
 			emit("NOT_IF_" + str(if_counter_local)  + ':\n' )
+			    
+			}
+		}
+		catch (RecognitionException re) {
+			_localctx.exception = re;
+			_errHandler.reportError(this, re);
+			_errHandler.recover(this, re);
+		}
+		finally {
+			exitRule();
+		}
+		return _localctx;
+	}
+
+	public static class St_whileContext extends ParserRuleContext {
+		public TerminalNode WHILE() { return getToken(ExpParser.WHILE, 0); }
+		public ComparisonContext comparison() {
+			return getRuleContext(ComparisonContext.class,0);
+		}
+		public TerminalNode OP_CUR() { return getToken(ExpParser.OP_CUR, 0); }
+		public TerminalNode CL_CUR() { return getToken(ExpParser.CL_CUR, 0); }
+		public List<StatementContext> statement() {
+			return getRuleContexts(StatementContext.class);
+		}
+		public StatementContext statement(int i) {
+			return getRuleContext(StatementContext.class,i);
+		}
+		public St_whileContext(ParserRuleContext parent, int invokingState) {
+			super(parent, invokingState);
+		}
+		@Override public int getRuleIndex() { return RULE_st_while; }
+	}
+
+	public final St_whileContext st_while() throws RecognitionException {
+		St_whileContext _localctx = new St_whileContext(_ctx, getState());
+		enterRule(_localctx, 12, RULE_st_while);
+		int _la;
+		try {
+			enterOuterAlt(_localctx, 1);
+			{
+			setState(80);
+			match(WHILE);
+
+			global while_counter
+			begin_while = "BEGIN_WHILE_" + str(while_counter)
+			end_while = "END_WHILE_" + str(while_counter)
+			emit(begin_while + ':')
+
+			global current_begin_while
+			current_begin_while.append(begin_while)
+
+			global current_end_while
+			current_end_while.append(end_while)
+
+			while_counter += 1
+			    
+			setState(82);
+			comparison();
+
+			emit(end_while, initLN='')
+			    
+			setState(84);
+			match(OP_CUR);
+			setState(86); 
+			_errHandler.sync(this);
+			_la = _input.LA(1);
+			do {
+				{
+				{
+				setState(85);
+				statement();
+				}
+				}
+				setState(88); 
+				_errHandler.sync(this);
+				_la = _input.LA(1);
+			} while ( (((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << PRINT) | (1L << IF) | (1L << WHILE) | (1L << BREAK) | (1L << CONTINUE) | (1L << NAME))) != 0) );
+			setState(90);
+			match(CL_CUR);
+
+			emit("goto "+begin_while)
+			emit(end_while+':\n')
+			current_begin_while.pop()
+			current_end_while.pop()
+			    
+			}
+		}
+		catch (RecognitionException re) {
+			_localctx.exception = re;
+			_errHandler.reportError(this, re);
+			_errHandler.recover(this, re);
+		}
+		finally {
+			exitRule();
+		}
+		return _localctx;
+	}
+
+	public static class St_breakContext extends ParserRuleContext {
+		public TerminalNode BREAK() { return getToken(ExpParser.BREAK, 0); }
+		public St_breakContext(ParserRuleContext parent, int invokingState) {
+			super(parent, invokingState);
+		}
+		@Override public int getRuleIndex() { return RULE_st_break; }
+	}
+
+	public final St_breakContext st_break() throws RecognitionException {
+		St_breakContext _localctx = new St_breakContext(_ctx, getState());
+		enterRule(_localctx, 14, RULE_st_break);
+		try {
+			enterOuterAlt(_localctx, 1);
+			{
+			setState(93);
+			match(BREAK);
+
+			global current_end_while
+			if len(current_end_while) > 0:
+			    emit("goto " + current_end_while[-1] + " ;break")
+			else:
+			    print("error: The 'break' command must be in a loop escope", file=sys.stderr)
+			    sys.exit(1)
+			    
+			}
+		}
+		catch (RecognitionException re) {
+			_localctx.exception = re;
+			_errHandler.reportError(this, re);
+			_errHandler.recover(this, re);
+		}
+		finally {
+			exitRule();
+		}
+		return _localctx;
+	}
+
+	public static class St_continueContext extends ParserRuleContext {
+		public TerminalNode CONTINUE() { return getToken(ExpParser.CONTINUE, 0); }
+		public St_continueContext(ParserRuleContext parent, int invokingState) {
+			super(parent, invokingState);
+		}
+		@Override public int getRuleIndex() { return RULE_st_continue; }
+	}
+
+	public final St_continueContext st_continue() throws RecognitionException {
+		St_continueContext _localctx = new St_continueContext(_ctx, getState());
+		enterRule(_localctx, 16, RULE_st_continue);
+		try {
+			enterOuterAlt(_localctx, 1);
+			{
+			setState(96);
+			match(CONTINUE);
+
+			global current_begin_while
+			if len(current_begin_while) > 0:
+			    emit("goto " + current_begin_while[-1] + " ;continue")
+			else:
+			    print("error: The 'continue' command must be in a loop escope", file=sys.stderr)
+			    sys.exit(1)
 			    
 			}
 		}
@@ -501,14 +695,14 @@ public class ExpParser extends Parser {
 
 	public final ComparisonContext comparison() throws RecognitionException {
 		ComparisonContext _localctx = new ComparisonContext(_ctx, getState());
-		enterRule(_localctx, 12, RULE_comparison);
+		enterRule(_localctx, 18, RULE_comparison);
 		int _la;
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(71);
+			setState(99);
 			expression();
-			setState(72);
+			setState(100);
 			((ComparisonContext)_localctx).op = _input.LT(1);
 			_la = _input.LA(1);
 			if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << EQ) | (1L << NE) | (1L << GT) | (1L << GE) | (1L << LT) | (1L << LE))) != 0)) ) {
@@ -519,16 +713,16 @@ public class ExpParser extends Parser {
 				_errHandler.reportMatch(this);
 				consume();
 			}
-			setState(73);
+			setState(101);
 			expression();
 
 			# usa a comparação inversa para o desvio
-			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.NE  : emit("if_icmpeq ", -2, endLN='')
-			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.GT  : emit("if_icmple ", -2, endLN='')
-			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.GE  : emit("if_icmplt ", -2, endLN='')
-			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.LT  : emit("if_icmpge ", -2, endLN='')
-			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.EQ  : emit("if_icmpne ", -2, endLN='')
-			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.LE  : emit("if_icmpgt ", -2, endLN='')
+			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.GT  : emit("if_icmple ", stack_att=-2, endLN='')
+			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.NE  : emit("if_icmpeq ", stack_att=-2, endLN='')
+			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.GE  : emit("if_icmplt ", stack_att=-2, endLN='')
+			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.LT  : emit("if_icmpge ", stack_att=-2, endLN='')
+			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.EQ  : emit("if_icmpne ", stack_att=-2, endLN='')
+			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.LE  : emit("if_icmpgt ", stack_att=-2, endLN='')
 			    
 			}
 		}
@@ -567,20 +761,20 @@ public class ExpParser extends Parser {
 
 	public final ExpressionContext expression() throws RecognitionException {
 		ExpressionContext _localctx = new ExpressionContext(_ctx, getState());
-		enterRule(_localctx, 14, RULE_expression);
+		enterRule(_localctx, 20, RULE_expression);
 		int _la;
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(76);
+			setState(104);
 			term();
-			setState(83);
+			setState(111);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
 			while (_la==PLUS || _la==MINUS) {
 				{
 				{
-				setState(77);
+				setState(105);
 				((ExpressionContext)_localctx).op = _input.LT(1);
 				_la = _input.LA(1);
 				if ( !(_la==PLUS || _la==MINUS) ) {
@@ -591,7 +785,7 @@ public class ExpParser extends Parser {
 					_errHandler.reportMatch(this);
 					consume();
 				}
-				setState(78);
+				setState(106);
 				term();
 
 				if (((ExpressionContext)_localctx).op!=null?((ExpressionContext)_localctx).op.getType():0) == ExpParser.PLUS  : emit('iadd', -1)
@@ -599,7 +793,7 @@ public class ExpParser extends Parser {
 				    
 				}
 				}
-				setState(85);
+				setState(113);
 				_errHandler.sync(this);
 				_la = _input.LA(1);
 			}
@@ -644,20 +838,20 @@ public class ExpParser extends Parser {
 
 	public final TermContext term() throws RecognitionException {
 		TermContext _localctx = new TermContext(_ctx, getState());
-		enterRule(_localctx, 16, RULE_term);
+		enterRule(_localctx, 22, RULE_term);
 		int _la;
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(86);
+			setState(114);
 			factor();
-			setState(93);
+			setState(121);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
 			while ((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << TIMES) | (1L << OVER) | (1L << REM))) != 0)) {
 				{
 				{
-				setState(87);
+				setState(115);
 				((TermContext)_localctx).op = _input.LT(1);
 				_la = _input.LA(1);
 				if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << TIMES) | (1L << OVER) | (1L << REM))) != 0)) ) {
@@ -668,7 +862,7 @@ public class ExpParser extends Parser {
 					_errHandler.reportMatch(this);
 					consume();
 				}
-				setState(88);
+				setState(116);
 				factor();
 
 				if (((TermContext)_localctx).op!=null?((TermContext)_localctx).op.getType():0) == ExpParser.TIMES : emit('imul', -1)
@@ -677,7 +871,7 @@ public class ExpParser extends Parser {
 				    
 				}
 				}
-				setState(95);
+				setState(123);
 				_errHandler.sync(this);
 				_la = _input.LA(1);
 			}
@@ -713,15 +907,15 @@ public class ExpParser extends Parser {
 
 	public final FactorContext factor() throws RecognitionException {
 		FactorContext _localctx = new FactorContext(_ctx, getState());
-		enterRule(_localctx, 18, RULE_factor);
+		enterRule(_localctx, 24, RULE_factor);
 		try {
-			setState(108);
+			setState(136);
 			_errHandler.sync(this);
 			switch (_input.LA(1)) {
 			case NUMBER:
 				enterOuterAlt(_localctx, 1);
 				{
-				setState(96);
+				setState(124);
 				((FactorContext)_localctx).NUMBER = match(NUMBER);
 
 				emit('ldc ' + (((FactorContext)_localctx).NUMBER!=null?((FactorContext)_localctx).NUMBER.getText():null), +1)
@@ -731,18 +925,18 @@ public class ExpParser extends Parser {
 			case OP_PAR:
 				enterOuterAlt(_localctx, 2);
 				{
-				setState(98);
+				setState(126);
 				match(OP_PAR);
-				setState(99);
+				setState(127);
 				expression();
-				setState(100);
+				setState(128);
 				match(CL_PAR);
 				}
 				break;
 			case NAME:
 				enterOuterAlt(_localctx, 3);
 				{
-				setState(102);
+				setState(130);
 				((FactorContext)_localctx).NAME = match(NAME);
 
 				# encontrar o index de (((FactorContext)_localctx).NAME!=null?((FactorContext)_localctx).NAME.getText():null) e gerar o bytecode 'iload index'
@@ -760,11 +954,11 @@ public class ExpParser extends Parser {
 			case READ_INT:
 				enterOuterAlt(_localctx, 4);
 				{
-				setState(104);
+				setState(132);
 				match(READ_INT);
-				setState(105);
+				setState(133);
 				match(OP_PAR);
-				setState(106);
+				setState(134);
 				match(CL_PAR);
 
 				emit("invokestatic Runtime/readInt()I", +1)
@@ -787,33 +981,42 @@ public class ExpParser extends Parser {
 	}
 
 	public static final String _serializedATN =
-		"\3\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786\u5964\3\32q\4\2\t\2\4\3\t"+
-		"\3\4\4\t\4\4\5\t\5\4\6\t\6\4\7\t\7\4\b\t\b\4\t\t\t\4\n\t\n\4\13\t\13\3"+
-		"\2\3\2\3\2\3\3\3\3\6\3\34\n\3\r\3\16\3\35\3\3\3\3\3\4\3\4\3\4\5\4%\n\4"+
-		"\3\5\3\5\3\5\3\5\3\5\3\5\3\5\3\5\3\5\3\5\7\5\61\n\5\f\5\16\5\64\13\5\3"+
-		"\5\3\5\3\5\3\6\3\6\3\6\3\6\3\6\3\7\3\7\3\7\3\7\3\7\6\7C\n\7\r\7\16\7D"+
-		"\3\7\3\7\3\7\3\b\3\b\3\b\3\b\3\b\3\t\3\t\3\t\3\t\3\t\7\tT\n\t\f\t\16\t"+
-		"W\13\t\3\n\3\n\3\n\3\n\3\n\7\n^\n\n\f\n\16\na\13\n\3\13\3\13\3\13\3\13"+
-		"\3\13\3\13\3\13\3\13\3\13\3\13\3\13\3\13\5\13o\n\13\3\13\2\2\f\2\4\6\b"+
-		"\n\f\16\20\22\24\2\5\3\2\20\25\4\2\5\5\7\7\4\2\6\6\b\t\2p\2\26\3\2\2\2"+
-		"\4\31\3\2\2\2\6$\3\2\2\2\b&\3\2\2\2\n8\3\2\2\2\f=\3\2\2\2\16I\3\2\2\2"+
-		"\20N\3\2\2\2\22X\3\2\2\2\24n\3\2\2\2\26\27\b\2\1\2\27\30\5\4\3\2\30\3"+
-		"\3\2\2\2\31\33\b\3\1\2\32\34\5\6\4\2\33\32\3\2\2\2\34\35\3\2\2\2\35\33"+
-		"\3\2\2\2\35\36\3\2\2\2\36\37\3\2\2\2\37 \b\3\1\2 \5\3\2\2\2!%\5\b\5\2"+
-		"\"%\5\n\6\2#%\5\f\7\2$!\3\2\2\2$\"\3\2\2\2$#\3\2\2\2%\7\3\2\2\2&\'\7\26"+
-		"\2\2\'(\7\n\2\2()\b\5\1\2)*\5\20\t\2*\62\b\5\1\2+,\7\r\2\2,-\b\5\1\2-"+
-		".\5\20\t\2./\b\5\1\2/\61\3\2\2\2\60+\3\2\2\2\61\64\3\2\2\2\62\60\3\2\2"+
-		"\2\62\63\3\2\2\2\63\65\3\2\2\2\64\62\3\2\2\2\65\66\7\13\2\2\66\67\b\5"+
-		"\1\2\67\t\3\2\2\289\7\32\2\29:\7\f\2\2:;\5\20\t\2;<\b\6\1\2<\13\3\2\2"+
-		"\2=>\7\30\2\2>?\5\16\b\2?@\b\7\1\2@B\7\16\2\2AC\5\6\4\2BA\3\2\2\2CD\3"+
-		"\2\2\2DB\3\2\2\2DE\3\2\2\2EF\3\2\2\2FG\7\17\2\2GH\b\7\1\2H\r\3\2\2\2I"+
-		"J\5\20\t\2JK\t\2\2\2KL\5\20\t\2LM\b\b\1\2M\17\3\2\2\2NU\5\22\n\2OP\t\3"+
-		"\2\2PQ\5\22\n\2QR\b\t\1\2RT\3\2\2\2SO\3\2\2\2TW\3\2\2\2US\3\2\2\2UV\3"+
-		"\2\2\2V\21\3\2\2\2WU\3\2\2\2X_\5\24\13\2YZ\t\4\2\2Z[\5\24\13\2[\\\b\n"+
-		"\1\2\\^\3\2\2\2]Y\3\2\2\2^a\3\2\2\2_]\3\2\2\2_`\3\2\2\2`\23\3\2\2\2a_"+
-		"\3\2\2\2bc\7\31\2\2co\b\13\1\2de\7\n\2\2ef\5\20\t\2fg\7\13\2\2go\3\2\2"+
-		"\2hi\7\32\2\2io\b\13\1\2jk\7\27\2\2kl\7\n\2\2lm\7\13\2\2mo\b\13\1\2nb"+
-		"\3\2\2\2nd\3\2\2\2nh\3\2\2\2nj\3\2\2\2o\25\3\2\2\2\t\35$\62DU_n";
+		"\3\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786\u5964\3\35\u008d\4\2\t\2"+
+		"\4\3\t\3\4\4\t\4\4\5\t\5\4\6\t\6\4\7\t\7\4\b\t\b\4\t\t\t\4\n\t\n\4\13"+
+		"\t\13\4\f\t\f\4\r\t\r\4\16\t\16\3\2\3\2\3\2\3\3\3\3\6\3\"\n\3\r\3\16\3"+
+		"#\3\3\3\3\3\4\3\4\3\4\3\4\3\4\3\4\5\4.\n\4\3\5\3\5\3\5\3\5\3\5\3\5\3\5"+
+		"\3\5\3\5\3\5\7\5:\n\5\f\5\16\5=\13\5\3\5\3\5\3\5\3\6\3\6\3\6\3\6\3\6\3"+
+		"\7\3\7\3\7\3\7\3\7\6\7L\n\7\r\7\16\7M\3\7\3\7\3\7\3\b\3\b\3\b\3\b\3\b"+
+		"\3\b\6\bY\n\b\r\b\16\bZ\3\b\3\b\3\b\3\t\3\t\3\t\3\n\3\n\3\n\3\13\3\13"+
+		"\3\13\3\13\3\13\3\f\3\f\3\f\3\f\3\f\7\fp\n\f\f\f\16\fs\13\f\3\r\3\r\3"+
+		"\r\3\r\3\r\7\rz\n\r\f\r\16\r}\13\r\3\16\3\16\3\16\3\16\3\16\3\16\3\16"+
+		"\3\16\3\16\3\16\3\16\3\16\5\16\u008b\n\16\3\16\2\2\17\2\4\6\b\n\f\16\20"+
+		"\22\24\26\30\32\2\5\3\2\20\25\4\2\5\5\7\7\4\2\6\6\b\t\2\u008d\2\34\3\2"+
+		"\2\2\4\37\3\2\2\2\6-\3\2\2\2\b/\3\2\2\2\nA\3\2\2\2\fF\3\2\2\2\16R\3\2"+
+		"\2\2\20_\3\2\2\2\22b\3\2\2\2\24e\3\2\2\2\26j\3\2\2\2\30t\3\2\2\2\32\u008a"+
+		"\3\2\2\2\34\35\b\2\1\2\35\36\5\4\3\2\36\3\3\2\2\2\37!\b\3\1\2 \"\5\6\4"+
+		"\2! \3\2\2\2\"#\3\2\2\2#!\3\2\2\2#$\3\2\2\2$%\3\2\2\2%&\b\3\1\2&\5\3\2"+
+		"\2\2\'.\5\b\5\2(.\5\n\6\2).\5\f\7\2*.\5\16\b\2+.\5\20\t\2,.\5\22\n\2-"+
+		"\'\3\2\2\2-(\3\2\2\2-)\3\2\2\2-*\3\2\2\2-+\3\2\2\2-,\3\2\2\2.\7\3\2\2"+
+		"\2/\60\7\26\2\2\60\61\7\n\2\2\61\62\b\5\1\2\62\63\5\26\f\2\63;\b\5\1\2"+
+		"\64\65\7\r\2\2\65\66\b\5\1\2\66\67\5\26\f\2\678\b\5\1\28:\3\2\2\29\64"+
+		"\3\2\2\2:=\3\2\2\2;9\3\2\2\2;<\3\2\2\2<>\3\2\2\2=;\3\2\2\2>?\7\13\2\2"+
+		"?@\b\5\1\2@\t\3\2\2\2AB\7\35\2\2BC\7\f\2\2CD\5\26\f\2DE\b\6\1\2E\13\3"+
+		"\2\2\2FG\7\30\2\2GH\5\24\13\2HI\b\7\1\2IK\7\16\2\2JL\5\6\4\2KJ\3\2\2\2"+
+		"LM\3\2\2\2MK\3\2\2\2MN\3\2\2\2NO\3\2\2\2OP\7\17\2\2PQ\b\7\1\2Q\r\3\2\2"+
+		"\2RS\7\31\2\2ST\b\b\1\2TU\5\24\13\2UV\b\b\1\2VX\7\16\2\2WY\5\6\4\2XW\3"+
+		"\2\2\2YZ\3\2\2\2ZX\3\2\2\2Z[\3\2\2\2[\\\3\2\2\2\\]\7\17\2\2]^\b\b\1\2"+
+		"^\17\3\2\2\2_`\7\32\2\2`a\b\t\1\2a\21\3\2\2\2bc\7\33\2\2cd\b\n\1\2d\23"+
+		"\3\2\2\2ef\5\26\f\2fg\t\2\2\2gh\5\26\f\2hi\b\13\1\2i\25\3\2\2\2jq\5\30"+
+		"\r\2kl\t\3\2\2lm\5\30\r\2mn\b\f\1\2np\3\2\2\2ok\3\2\2\2ps\3\2\2\2qo\3"+
+		"\2\2\2qr\3\2\2\2r\27\3\2\2\2sq\3\2\2\2t{\5\32\16\2uv\t\4\2\2vw\5\32\16"+
+		"\2wx\b\r\1\2xz\3\2\2\2yu\3\2\2\2z}\3\2\2\2{y\3\2\2\2{|\3\2\2\2|\31\3\2"+
+		"\2\2}{\3\2\2\2~\177\7\34\2\2\177\u008b\b\16\1\2\u0080\u0081\7\n\2\2\u0081"+
+		"\u0082\5\26\f\2\u0082\u0083\7\13\2\2\u0083\u008b\3\2\2\2\u0084\u0085\7"+
+		"\35\2\2\u0085\u008b\b\16\1\2\u0086\u0087\7\27\2\2\u0087\u0088\7\n\2\2"+
+		"\u0088\u0089\7\13\2\2\u0089\u008b\b\16\1\2\u008a~\3\2\2\2\u008a\u0080"+
+		"\3\2\2\2\u008a\u0084\3\2\2\2\u008a\u0086\3\2\2\2\u008b\33\3\2\2\2\n#-"+
+		";MZq{\u008a";
 	public static final ATN _ATN =
 		new ATNDeserializer().deserialize(_serializedATN.toCharArray());
 	static {

@@ -12,6 +12,9 @@ symbol_table_use = []
 stack_cur = 0
 stack_max = 0
 if_counter = 0
+while_counter = 0
+current_begin_while = []
+current_end_while = []
 
 def emit(comand, stack_att=0, initLN="    ", endLN='\n'):
     global stack_cur, stack_max
@@ -49,6 +52,9 @@ LE    : '<=' ;
 PRINT   : 'print' ;
 READ_INT: 'read_int';
 IF      : 'if';
+WHILE   : 'while';
+BREAK   : 'break';
+CONTINUE: 'continue';
 
 NUMBER: '0'..'9'+ ;
 
@@ -93,7 +99,7 @@ if 0 in symbol_table_use:
     }
     ;
 
-statement: st_print | st_attrib | st_if;
+statement: st_print | st_attrib | st_if | st_while | st_break | st_continue;
 
 st_print: PRINT OP_PAR
     {
@@ -137,7 +143,7 @@ st_if: IF comparison
 global if_counter
 if_counter_local = if_counter
 if_counter += 1
-emit("NOT_IF_" + str(if_counter_local), -2, initLN='')
+emit("NOT_IF_" + str(if_counter_local), initLN='')
     }
     OP_CUR (statement)+ CL_CUR
     {
@@ -145,15 +151,65 @@ emit("NOT_IF_" + str(if_counter_local)  + ':\n' )
     }
     ;
 
+st_while: WHILE 
+    {
+global while_counter
+begin_while = "BEGIN_WHILE_" + str(while_counter)
+end_while = "END_WHILE_" + str(while_counter)
+emit(begin_while + ':')
+
+global current_begin_while
+current_begin_while.append(begin_while)
+
+global current_end_while
+current_end_while.append(end_while)
+
+while_counter += 1
+    }
+    comparison
+    {
+emit(end_while, initLN='')
+    }
+    OP_CUR (statement)+ CL_CUR
+    {
+emit("goto "+begin_while)
+emit(end_while+':\n')
+current_begin_while.pop()
+current_end_while.pop()
+    }
+    ;
+
+st_break: BREAK
+    {
+global current_end_while
+if len(current_end_while) > 0:
+    emit("goto " + current_end_while[-1] + " ;break")
+else:
+    print("error: The 'break' command must be in a loop escope", file=sys.stderr)
+    sys.exit(1)
+    }
+    ;
+
+st_continue: CONTINUE
+    {
+global current_begin_while
+if len(current_begin_while) > 0:
+    emit("goto " + current_begin_while[-1] + " ;continue")
+else:
+    print("error: The 'continue' command must be in a loop escope", file=sys.stderr)
+    sys.exit(1)
+    }
+    ;
+
 comparison: expression op = ( EQ | NE | GT | GE | LT | LE ) expression
     {
 # usa a comparação inversa para o desvio
-if $op.type == ExpParser.NE  : emit("if_icmpeq ", -2, endLN='')
-if $op.type == ExpParser.GT  : emit("if_icmple ", -2, endLN='')
-if $op.type == ExpParser.GE  : emit("if_icmplt ", -2, endLN='')
-if $op.type == ExpParser.LT  : emit("if_icmpge ", -2, endLN='')
-if $op.type == ExpParser.EQ  : emit("if_icmpne ", -2, endLN='')
-if $op.type == ExpParser.LE  : emit("if_icmpgt ", -2, endLN='')
+if $op.type == ExpParser.GT  : emit("if_icmple ", stack_att=-2, endLN='')
+if $op.type == ExpParser.NE  : emit("if_icmpeq ", stack_att=-2, endLN='')
+if $op.type == ExpParser.GE  : emit("if_icmplt ", stack_att=-2, endLN='')
+if $op.type == ExpParser.LT  : emit("if_icmpge ", stack_att=-2, endLN='')
+if $op.type == ExpParser.EQ  : emit("if_icmpne ", stack_att=-2, endLN='')
+if $op.type == ExpParser.LE  : emit("if_icmpgt ", stack_att=-2, endLN='')
     }
     ;
 

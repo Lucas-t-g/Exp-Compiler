@@ -24,9 +24,9 @@
     if_icmpne NOT_IF_0
     iload 2
     iload 3
-    if_icmple NOT_IF_1
+    if_icmpeq NOT_IF_1
     getstatic java/lang/System/out Ljava/io/PrintStream;
-    ldc 4
+    iload 2
     invokevirtual java/io/PrintStream/print(I)V
 
     getstatic java/lang/System/out Ljava/io/PrintStream;
@@ -34,65 +34,14 @@
 
     NOT_IF_1:
 
-    iload 2
-    iload 3
-    if_icmpgt NOT_IF_2
     getstatic java/lang/System/out Ljava/io/PrintStream;
-    ldc 5
+    iload 3
     invokevirtual java/io/PrintStream/print(I)V
 
     getstatic java/lang/System/out Ljava/io/PrintStream;
     invokevirtual java/io/PrintStream/println()V
-
-    NOT_IF_2:
 
     NOT_IF_0:
-
-    iload 1
-    iload 2
-    if_icmpeq NOT_IF_3
-    iload 1
-    iload 2
-    if_icmpge NOT_IF_4
-    iload 2
-    iload 3
-    if_icmple NOT_IF_5
-    getstatic java/lang/System/out Ljava/io/PrintStream;
-    ldc 6
-    invokevirtual java/io/PrintStream/print(I)V
-
-    getstatic java/lang/System/out Ljava/io/PrintStream;
-    invokevirtual java/io/PrintStream/println()V
-
-    NOT_IF_5:
-
-    iload 2
-    iload 3
-    if_icmpgt NOT_IF_6
-    getstatic java/lang/System/out Ljava/io/PrintStream;
-    ldc 7
-    invokevirtual java/io/PrintStream/print(I)V
-
-    getstatic java/lang/System/out Ljava/io/PrintStream;
-    invokevirtual java/io/PrintStream/println()V
-
-    NOT_IF_6:
-
-    NOT_IF_4:
-
-    iload 1
-    iload 2
-    if_icmplt NOT_IF_7
-    getstatic java/lang/System/out Ljava/io/PrintStream;
-    ldc 8
-    invokevirtual java/io/PrintStream/print(I)V
-
-    getstatic java/lang/System/out Ljava/io/PrintStream;
-    invokevirtual java/io/PrintStream/println()V
-
-    NOT_IF_7:
-
-    NOT_IF_3:
 
     return
 .limit stack 2

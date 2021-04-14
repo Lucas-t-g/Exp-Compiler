@@ -11,6 +11,7 @@ else
         fi
     else
         rm -f Test.j
+        # echo "deu ruim"
     fi
 fi
 
