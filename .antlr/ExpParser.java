@@ -4,6 +4,8 @@ import sys
 
 symbol_table = []
 symbol_table_use = []
+type_table = []
+has_error = False
 
 stack_cur = 0
 stack_max = 0
@@ -19,6 +21,11 @@ def emit(comand, stack_att=0, initLN="    ", endLN='\n'):
         stack_max = stack_cur
     print(initLN + comand, end=endLN)
 
+def error(msg = "", fatal = False):
+    global has_error
+    has_error = True
+    if not fatal:   print("ERROR: " + msg, file=sys.stderr)
+    else: print("FATAL ERROR: inernal error", file=sys.stderr)
 
 import org.antlr.v4.runtime.atn.*;
 import org.antlr.v4.runtime.dfa.DFA;
@@ -39,8 +46,8 @@ public class ExpParser extends Parser {
 	public static final int
 		COMMENT=1, SPACE=2, PLUS=3, TIMES=4, MINUS=5, OVER=6, REM=7, OP_PAR=8, 
 		CL_PAR=9, ATTRIB=10, COMMA=11, OP_CUR=12, CL_CUR=13, EQ=14, NE=15, GT=16, 
-		GE=17, LT=18, LE=19, PRINT=20, READ_INT=21, IF=22, WHILE=23, BREAK=24, 
-		CONTINUE=25, NUMBER=26, NAME=27;
+		GE=17, LT=18, LE=19, PRINT=20, READ_INT=21, READ_STR=22, IF=23, WHILE=24, 
+		BREAK=25, CONTINUE=26, ELSE=27, NUMBER=28, STRING=29, NAME=30;
 	public static final int
 		RULE_program = 0, RULE_main = 1, RULE_statement = 2, RULE_st_print = 3, 
 		RULE_st_attrib = 4, RULE_st_if = 5, RULE_st_while = 6, RULE_st_break = 7, 
@@ -58,7 +65,8 @@ public class ExpParser extends Parser {
 		return new String[] {
 			null, null, null, "'+'", "'*'", "'-'", "'/'", "'%'", "'('", "')'", "'='", 
 			"','", "'{'", "'}'", "'=='", "'!='", "'>'", "'>='", "'<'", "'<='", "'print'", 
-			"'read_int'", "'if'", "'while'", "'break'", "'continue'"
+			"'read_int'", "'read_str'", "'if'", "'while'", "'break'", "'continue'", 
+			"'else'"
 		};
 	}
 	private static final String[] _LITERAL_NAMES = makeLiteralNames();
@@ -66,8 +74,8 @@ public class ExpParser extends Parser {
 		return new String[] {
 			null, "COMMENT", "SPACE", "PLUS", "TIMES", "MINUS", "OVER", "REM", "OP_PAR", 
 			"CL_PAR", "ATTRIB", "COMMA", "OP_CUR", "CL_CUR", "EQ", "NE", "GT", "GE", 
-			"LT", "LE", "PRINT", "READ_INT", "IF", "WHILE", "BREAK", "CONTINUE", 
-			"NUMBER", "NAME"
+			"LT", "LE", "PRINT", "READ_INT", "READ_STR", "IF", "WHILE", "BREAK", 
+			"CONTINUE", "ELSE", "NUMBER", "STRING", "NAME"
 		};
 	}
 	private static final String[] _SYMBOLIC_NAMES = makeSymbolicNames();
@@ -184,8 +192,6 @@ public class ExpParser extends Parser {
 			{
 
 			print('.method public static main([Ljava/lang/String;)V\n')
-			symbol_table.append('args')
-			symbol_table_use.append(1)
 			    
 			setState(31); 
 			_errHandler.sync(this);
@@ -202,6 +208,7 @@ public class ExpParser extends Parser {
 				_la = _input.LA(1);
 			} while ( (((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << PRINT) | (1L << IF) | (1L << WHILE) | (1L << BREAK) | (1L << CONTINUE) | (1L << NAME))) != 0) );
 
+
 			print('    return')
 			print('.limit stack', stack_max)
 			if len(symbol_table) > 0 : print('.limit locals', len(symbol_table))
@@ -211,8 +218,9 @@ public class ExpParser extends Parser {
 			if 0 in symbol_table_use:
 			    for index, symbol in enumerate(symbol_table):
 			        if symbol_table_use[index] == 0:
-			            print("error: variable '" + symbol + "' is defined but never used", file=sys.stderr)
+			            error(msg = "variable '" + symbol + "' is defined but never used")
 
+			if has_error:
 			    sys.exit(1)
 			    
 			}
@@ -318,15 +326,18 @@ public class ExpParser extends Parser {
 	}
 
 	public static class St_printContext extends ParserRuleContext {
+		public ExpressionContext e1;
+		public Token COMMA;
+		public ExpressionContext e2;
 		public TerminalNode PRINT() { return getToken(ExpParser.PRINT, 0); }
 		public TerminalNode OP_PAR() { return getToken(ExpParser.OP_PAR, 0); }
+		public TerminalNode CL_PAR() { return getToken(ExpParser.CL_PAR, 0); }
 		public List<ExpressionContext> expression() {
 			return getRuleContexts(ExpressionContext.class);
 		}
 		public ExpressionContext expression(int i) {
 			return getRuleContext(ExpressionContext.class,i);
 		}
-		public TerminalNode CL_PAR() { return getToken(ExpParser.CL_PAR, 0); }
 		public List<TerminalNode> COMMA() { return getTokens(ExpParser.COMMA); }
 		public TerminalNode COMMA(int i) {
 			return getToken(ExpParser.COMMA, i);
@@ -352,9 +363,14 @@ public class ExpParser extends Parser {
 			emit('getstatic java/lang/System/out Ljava/io/PrintStream;', +1)
 			    
 			setState(48);
-			expression();
+			((St_printContext)_localctx).e1 = expression();
 
-			emit('invokevirtual java/io/PrintStream/print(I)V\n', -2)
+			if ((St_printContext)_localctx).e1.type == 'i':
+			    emit('invokevirtual java/io/PrintStream/print(I)V\n', -2)
+			elif ((St_printContext)_localctx).e1.type == 's':
+			    emit('invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n', -2)
+			else:
+			    error(fatal = True)
 			    
 			setState(57);
 			_errHandler.sync(this);
@@ -363,14 +379,19 @@ public class ExpParser extends Parser {
 				{
 				{
 				setState(50);
-				match(COMMA);
+				((St_printContext)_localctx).COMMA = match(COMMA);
 
 				emit('getstatic java/lang/System/out Ljava/io/PrintStream;', +1)
 				    
 				setState(52);
-				expression();
+				((St_printContext)_localctx).e2 = expression();
 
-				emit('invokevirtual java/io/PrintStream/print(I)V\n', -2)
+				if ((St_printContext)_localctx).e2.type == 'i':
+				    emit('invokevirtual java/io/PrintStream/print(I)V\n', -2)
+				elif ((St_printContext)_localctx).e2.type == 's':
+				    emit('invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n', -2)
+				else:
+				    error(msg = "in line" + str((((St_printContext)_localctx).COMMA!=null?((St_printContext)_localctx).COMMA.getLine():0)) + "The 'break' command must be in a loop escope")
 				    
 				}
 				}
@@ -399,6 +420,7 @@ public class ExpParser extends Parser {
 
 	public static class St_attribContext extends ParserRuleContext {
 		public Token NAME;
+		public ExpressionContext expression;
 		public TerminalNode NAME() { return getToken(ExpParser.NAME, 0); }
 		public TerminalNode ATTRIB() { return getToken(ExpParser.ATTRIB, 0); }
 		public ExpressionContext expression() {
@@ -421,16 +443,26 @@ public class ExpParser extends Parser {
 			setState(64);
 			match(ATTRIB);
 			setState(65);
-			expression();
+			((St_attribContext)_localctx).expression = expression();
 
 			# 1. testar se a varialvel name já existe:  se não existir inclui (((St_attribContext)_localctx).NAME!=null?((St_attribContext)_localctx).NAME.getText():null) na symbol_table
 			if (((St_attribContext)_localctx).NAME!=null?((St_attribContext)_localctx).NAME.getText():null) not in symbol_table:
 			    symbol_table.append((((St_attribContext)_localctx).NAME!=null?((St_attribContext)_localctx).NAME.getText():null))
 			    symbol_table_use.append(0)
+			    type_table.append(((St_attribContext)_localctx).expression.type)
 
 			# 2. encontrar o índice de (((St_attribContext)_localctx).NAME!=null?((St_attribContext)_localctx).NAME.getText():null) e gerar o bytecode 'istore index'
 			index = symbol_table.index((((St_attribContext)_localctx).NAME!=null?((St_attribContext)_localctx).NAME.getText():null))
-			emit("istore "+ str(index) + '\n', -1)
+			my_type = type_table[index]
+			if my_type == ((St_attribContext)_localctx).expression.type:
+			    if my_type == 'i':
+			        emit("istore "+ str(index) + '\n', -1)
+			    elif my_type == 's':
+			        emit("astore "+ str(index) + '\n', -1)
+			    else:
+			        error(fatal = True)
+			else:
+			    error(msg = "in line " + str((((St_attribContext)_localctx).NAME!=null?((St_attribContext)_localctx).NAME.getLine():0)) + " '"+(((St_attribContext)_localctx).NAME!=null?((St_attribContext)_localctx).NAME.getText():null)+"' must be an " + ("integer" if my_type == 'i' else "string") )
 			    
 			}
 		}
@@ -450,14 +482,21 @@ public class ExpParser extends Parser {
 		public ComparisonContext comparison() {
 			return getRuleContext(ComparisonContext.class,0);
 		}
-		public TerminalNode OP_CUR() { return getToken(ExpParser.OP_CUR, 0); }
-		public TerminalNode CL_CUR() { return getToken(ExpParser.CL_CUR, 0); }
+		public List<TerminalNode> OP_CUR() { return getTokens(ExpParser.OP_CUR); }
+		public TerminalNode OP_CUR(int i) {
+			return getToken(ExpParser.OP_CUR, i);
+		}
+		public List<TerminalNode> CL_CUR() { return getTokens(ExpParser.CL_CUR); }
+		public TerminalNode CL_CUR(int i) {
+			return getToken(ExpParser.CL_CUR, i);
+		}
 		public List<StatementContext> statement() {
 			return getRuleContexts(StatementContext.class);
 		}
 		public StatementContext statement(int i) {
 			return getRuleContext(StatementContext.class,i);
 		}
+		public TerminalNode ELSE() { return getToken(ExpParser.ELSE, 0); }
 		public St_ifContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
 		}
@@ -476,10 +515,12 @@ public class ExpParser extends Parser {
 			setState(69);
 			comparison();
 
+			have_else = False
 			global if_counter
 			if_counter_local = if_counter
+			not_if_local = "NOT_IF_" + str(if_counter_local)
 			if_counter += 1
-			emit("NOT_IF_" + str(if_counter_local), initLN='')
+			emit(not_if_local, initLN='')
 			    
 			setState(71);
 			match(OP_CUR);
@@ -499,8 +540,43 @@ public class ExpParser extends Parser {
 			} while ( (((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << PRINT) | (1L << IF) | (1L << WHILE) | (1L << BREAK) | (1L << CONTINUE) | (1L << NAME))) != 0) );
 			setState(77);
 			match(CL_CUR);
+			setState(88);
+			_errHandler.sync(this);
+			_la = _input.LA(1);
+			if (_la==ELSE) {
+				{
 
-			emit("NOT_IF_" + str(if_counter_local)  + ':\n' )
+				have_else = True
+				end_else = "END_ELSE_"+str(if_counter_local)
+				emit("goto "+end_else)
+				emit(not_if_local + ':\n' )
+				    
+				setState(79);
+				match(ELSE);
+				setState(80);
+				match(OP_CUR);
+				setState(82); 
+				_errHandler.sync(this);
+				_la = _input.LA(1);
+				do {
+					{
+					{
+					setState(81);
+					statement();
+					}
+					}
+					setState(84); 
+					_errHandler.sync(this);
+					_la = _input.LA(1);
+				} while ( (((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << PRINT) | (1L << IF) | (1L << WHILE) | (1L << BREAK) | (1L << CONTINUE) | (1L << NAME))) != 0) );
+				setState(86);
+				match(CL_CUR);
+				}
+			}
+
+
+			if not have_else: emit(not_if_local + ':\n' )
+			else            : emit(end_else + ':\n')
 			    
 			}
 		}
@@ -541,7 +617,7 @@ public class ExpParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(80);
+			setState(92);
 			match(WHILE);
 
 			global while_counter
@@ -557,28 +633,28 @@ public class ExpParser extends Parser {
 
 			while_counter += 1
 			    
-			setState(82);
+			setState(94);
 			comparison();
 
 			emit(end_while, initLN='')
 			    
-			setState(84);
+			setState(96);
 			match(OP_CUR);
-			setState(86); 
+			setState(98); 
 			_errHandler.sync(this);
 			_la = _input.LA(1);
 			do {
 				{
 				{
-				setState(85);
+				setState(97);
 				statement();
 				}
 				}
-				setState(88); 
+				setState(100); 
 				_errHandler.sync(this);
 				_la = _input.LA(1);
 			} while ( (((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << PRINT) | (1L << IF) | (1L << WHILE) | (1L << BREAK) | (1L << CONTINUE) | (1L << NAME))) != 0) );
-			setState(90);
+			setState(102);
 			match(CL_CUR);
 
 			emit("goto "+begin_while)
@@ -600,6 +676,7 @@ public class ExpParser extends Parser {
 	}
 
 	public static class St_breakContext extends ParserRuleContext {
+		public Token BREAK;
 		public TerminalNode BREAK() { return getToken(ExpParser.BREAK, 0); }
 		public St_breakContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
@@ -613,15 +690,14 @@ public class ExpParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(93);
-			match(BREAK);
+			setState(105);
+			((St_breakContext)_localctx).BREAK = match(BREAK);
 
 			global current_end_while
 			if len(current_end_while) > 0:
 			    emit("goto " + current_end_while[-1] + " ;break")
 			else:
-			    print("error: The 'break' command must be in a loop escope", file=sys.stderr)
-			    sys.exit(1)
+			    error(msg = "in line " + str((((St_breakContext)_localctx).BREAK!=null?((St_breakContext)_localctx).BREAK.getLine():0)) + "The 'break' command must be in a loop escope")
 			    
 			}
 		}
@@ -637,6 +713,7 @@ public class ExpParser extends Parser {
 	}
 
 	public static class St_continueContext extends ParserRuleContext {
+		public Token CONTINUE;
 		public TerminalNode CONTINUE() { return getToken(ExpParser.CONTINUE, 0); }
 		public St_continueContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
@@ -650,15 +727,14 @@ public class ExpParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(96);
-			match(CONTINUE);
+			setState(108);
+			((St_continueContext)_localctx).CONTINUE = match(CONTINUE);
 
 			global current_begin_while
 			if len(current_begin_while) > 0:
 			    emit("goto " + current_begin_while[-1] + " ;continue")
 			else:
-			    print("error: The 'continue' command must be in a loop escope", file=sys.stderr)
-			    sys.exit(1)
+			    error(msg = "in line" + str((((St_continueContext)_localctx).CONTINUE!=null?((St_continueContext)_localctx).CONTINUE.getLine():0)) + "the 'continue' command must be in a loop escope")
 			    
 			}
 		}
@@ -674,7 +750,9 @@ public class ExpParser extends Parser {
 	}
 
 	public static class ComparisonContext extends ParserRuleContext {
+		public ExpressionContext e1;
 		public Token op;
+		public ExpressionContext e2;
 		public List<ExpressionContext> expression() {
 			return getRuleContexts(ExpressionContext.class);
 		}
@@ -700,9 +778,9 @@ public class ExpParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(99);
-			expression();
-			setState(100);
+			setState(111);
+			((ComparisonContext)_localctx).e1 = expression();
+			setState(112);
 			((ComparisonContext)_localctx).op = _input.LT(1);
 			_la = _input.LA(1);
 			if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << EQ) | (1L << NE) | (1L << GT) | (1L << GE) | (1L << LT) | (1L << LE))) != 0)) ) {
@@ -713,16 +791,20 @@ public class ExpParser extends Parser {
 				_errHandler.reportMatch(this);
 				consume();
 			}
-			setState(101);
-			expression();
+			setState(113);
+			((ComparisonContext)_localctx).e2 = expression();
 
 			# usa a comparação inversa para o desvio
-			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.GT  : emit("if_icmple ", stack_att=-2, endLN='')
-			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.NE  : emit("if_icmpeq ", stack_att=-2, endLN='')
-			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.GE  : emit("if_icmplt ", stack_att=-2, endLN='')
-			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.LT  : emit("if_icmpge ", stack_att=-2, endLN='')
-			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.EQ  : emit("if_icmpne ", stack_att=-2, endLN='')
-			if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.LE  : emit("if_icmpgt ", stack_att=-2, endLN='')
+
+			if ((ComparisonContext)_localctx).e1.type == 'i' and ((ComparisonContext)_localctx).e2.type == 'i':
+			    if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.GT  :emit("if_icmple ", stack_att=-2, endLN='')
+			    if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.NE  : emit("if_icmpeq ", stack_att=-2, endLN='')
+			    if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.GE  : emit("if_icmplt ", stack_att=-2, endLN='')
+			    if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.LT  : emit("if_icmpge ", stack_att=-2, endLN='')
+			    if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.EQ  : emit("if_icmpne ", stack_att=-2, endLN='')
+			    if (((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getType():0) == ExpParser.LE  : emit("if_icmpgt ", stack_att=-2, endLN='')
+			else:
+			    error(msg = "in line " + str((((ComparisonContext)_localctx).op!=null?((ComparisonContext)_localctx).op.getLine():0)) + " cannot mix types")
 			    
 			}
 		}
@@ -738,7 +820,10 @@ public class ExpParser extends Parser {
 	}
 
 	public static class ExpressionContext extends ParserRuleContext {
+		public  type;
+		public TermContext t1;
 		public Token op;
+		public TermContext t2;
 		public List<TermContext> term() {
 			return getRuleContexts(TermContext.class);
 		}
@@ -766,15 +851,15 @@ public class ExpParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(104);
-			term();
-			setState(111);
+			setState(116);
+			((ExpressionContext)_localctx).t1 = term();
+			setState(123);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
 			while (_la==PLUS || _la==MINUS) {
 				{
 				{
-				setState(105);
+				setState(117);
 				((ExpressionContext)_localctx).op = _input.LT(1);
 				_la = _input.LA(1);
 				if ( !(_la==PLUS || _la==MINUS) ) {
@@ -785,18 +870,23 @@ public class ExpParser extends Parser {
 					_errHandler.reportMatch(this);
 					consume();
 				}
-				setState(106);
-				term();
+				setState(118);
+				((ExpressionContext)_localctx).t2 = term();
 
 				if (((ExpressionContext)_localctx).op!=null?((ExpressionContext)_localctx).op.getType():0) == ExpParser.PLUS  : emit('iadd', -1)
 				if (((ExpressionContext)_localctx).op!=null?((ExpressionContext)_localctx).op.getType():0) == ExpParser.MINUS : emit('isub', -1)
+				if ((ExpressionContext)_localctx).t1.type != ((ExpressionContext)_localctx).t2.type:
+				    error(msg = "in line " + str((((ExpressionContext)_localctx).op!=null?((ExpressionContext)_localctx).op.getLine():0)) + " cannot mix types")
 				    
 				}
 				}
-				setState(113);
+				setState(125);
 				_errHandler.sync(this);
 				_la = _input.LA(1);
 			}
+
+			_localctx.type = ((ExpressionContext)_localctx).t1.type
+			    
 			}
 		}
 		catch (RecognitionException re) {
@@ -811,7 +901,10 @@ public class ExpParser extends Parser {
 	}
 
 	public static class TermContext extends ParserRuleContext {
+		public  type;
+		public FactorContext f1;
 		public Token op;
+		public FactorContext f2;
 		public List<FactorContext> factor() {
 			return getRuleContexts(FactorContext.class);
 		}
@@ -843,15 +936,15 @@ public class ExpParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(114);
-			factor();
-			setState(121);
+			setState(128);
+			((TermContext)_localctx).f1 = factor();
+			setState(135);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
 			while ((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << TIMES) | (1L << OVER) | (1L << REM))) != 0)) {
 				{
 				{
-				setState(115);
+				setState(129);
 				((TermContext)_localctx).op = _input.LT(1);
 				_la = _input.LA(1);
 				if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << TIMES) | (1L << OVER) | (1L << REM))) != 0)) ) {
@@ -862,19 +955,26 @@ public class ExpParser extends Parser {
 					_errHandler.reportMatch(this);
 					consume();
 				}
-				setState(116);
-				factor();
+				setState(130);
+				((TermContext)_localctx).f2 = factor();
 
 				if (((TermContext)_localctx).op!=null?((TermContext)_localctx).op.getType():0) == ExpParser.TIMES : emit('imul', -1)
 				if (((TermContext)_localctx).op!=null?((TermContext)_localctx).op.getType():0) == ExpParser.OVER  : emit('idiv', -1)
 				if (((TermContext)_localctx).op!=null?((TermContext)_localctx).op.getType():0) == ExpParser.REM   : emit('irem', -1)
+				if ((TermContext)_localctx).f1.type != ((TermContext)_localctx).f2.type:
+				    error(msg = "in line " + str((((TermContext)_localctx).op!=null?((TermContext)_localctx).op.getLine():0)) + " cannot mix types")
+				elif ((TermContext)_localctx).f1.type != 'i' or ((TermContext)_localctx).f2.type != 'i':
+				    error(msg = "in line " + str((((TermContext)_localctx).op!=null?((TermContext)_localctx).op.getLine():0)) + " math operations is only for integers" )
 				    
 				}
 				}
-				setState(123);
+				setState(137);
 				_errHandler.sync(this);
 				_la = _input.LA(1);
 			}
+
+			_localctx.type = ((TermContext)_localctx).f1.type
+			    
 			}
 		}
 		catch (RecognitionException re) {
@@ -889,16 +989,22 @@ public class ExpParser extends Parser {
 	}
 
 	public static class FactorContext extends ParserRuleContext {
+		public  type;
 		public Token NUMBER;
+		public ExpressionContext f1;
+		public ExpressionContext expression;
 		public Token NAME;
+		public Token STRING;
 		public TerminalNode NUMBER() { return getToken(ExpParser.NUMBER, 0); }
 		public TerminalNode OP_PAR() { return getToken(ExpParser.OP_PAR, 0); }
+		public TerminalNode CL_PAR() { return getToken(ExpParser.CL_PAR, 0); }
 		public ExpressionContext expression() {
 			return getRuleContext(ExpressionContext.class,0);
 		}
-		public TerminalNode CL_PAR() { return getToken(ExpParser.CL_PAR, 0); }
 		public TerminalNode NAME() { return getToken(ExpParser.NAME, 0); }
 		public TerminalNode READ_INT() { return getToken(ExpParser.READ_INT, 0); }
+		public TerminalNode STRING() { return getToken(ExpParser.STRING, 0); }
+		public TerminalNode READ_STR() { return getToken(ExpParser.READ_STR, 0); }
 		public FactorContext(ParserRuleContext parent, int invokingState) {
 			super(parent, invokingState);
 		}
@@ -909,59 +1015,97 @@ public class ExpParser extends Parser {
 		FactorContext _localctx = new FactorContext(_ctx, getState());
 		enterRule(_localctx, 24, RULE_factor);
 		try {
-			setState(136);
+			setState(159);
 			_errHandler.sync(this);
 			switch (_input.LA(1)) {
 			case NUMBER:
 				enterOuterAlt(_localctx, 1);
 				{
-				setState(124);
+				setState(140);
 				((FactorContext)_localctx).NUMBER = match(NUMBER);
 
 				emit('ldc ' + (((FactorContext)_localctx).NUMBER!=null?((FactorContext)_localctx).NUMBER.getText():null), +1)
+				_localctx.type = 'i'
 				    
 				}
 				break;
 			case OP_PAR:
 				enterOuterAlt(_localctx, 2);
 				{
-				setState(126);
+				setState(142);
 				match(OP_PAR);
-				setState(127);
-				expression();
-				setState(128);
+				setState(143);
+				((FactorContext)_localctx).f1 = ((FactorContext)_localctx).expression = expression();
+				setState(144);
 				match(CL_PAR);
+
+				_localctx.type = ((FactorContext)_localctx).expression.type
+				    
 				}
 				break;
 			case NAME:
 				enterOuterAlt(_localctx, 3);
 				{
-				setState(130);
+				setState(147);
 				((FactorContext)_localctx).NAME = match(NAME);
 
 				# encontrar o index de (((FactorContext)_localctx).NAME!=null?((FactorContext)_localctx).NAME.getText():null) e gerar o bytecode 'iload index'
 				if (((FactorContext)_localctx).NAME!=null?((FactorContext)_localctx).NAME.getText():null) not in symbol_table:
-				    # print("fatal error", file=sys.stderr)
-				    print("error: variable '"+ (((FactorContext)_localctx).NAME!=null?((FactorContext)_localctx).NAME.getText():null)+"' is not declared", file=sys.stderr)
-				    sys.exit(1)
+				    error(msg =  "in line " + str((((FactorContext)_localctx).NAME!=null?((FactorContext)_localctx).NAME.getLine():0)) + "variable '" + (((FactorContext)_localctx).NAME!=null?((FactorContext)_localctx).NAME.getText():null) + "' is not declared")
+
 				else:
 				    index = symbol_table.index((((FactorContext)_localctx).NAME!=null?((FactorContext)_localctx).NAME.getText():null))
 				    symbol_table_use[index] += 1
-				    emit("iload "+ str(index), +1)
+				    my_type = type_table[index]
+				    if my_type == 'i':
+				        emit("iload "+ str(index), +1)
+				        _localctx.type = 'i'
+				    elif my_type == 's':
+				        emit("aload "+ str(index), +1)
+				        _localctx.type = 's'
+				    else:
+				        error(fatal = True)
 				    
 				}
 				break;
 			case READ_INT:
 				enterOuterAlt(_localctx, 4);
 				{
-				setState(132);
+				setState(149);
 				match(READ_INT);
-				setState(133);
+				setState(150);
 				match(OP_PAR);
-				setState(134);
+				setState(151);
 				match(CL_PAR);
 
 				emit("invokestatic Runtime/readInt()I", +1)
+				_localctx.type = 'i'
+				    
+				}
+				break;
+			case STRING:
+				enterOuterAlt(_localctx, 5);
+				{
+				setState(153);
+				((FactorContext)_localctx).STRING = match(STRING);
+
+				emit('ldc '+ (((FactorContext)_localctx).STRING!=null?((FactorContext)_localctx).STRING.getText():null), +1)
+				_localctx.type = 's'
+				    
+				}
+				break;
+			case READ_STR:
+				enterOuterAlt(_localctx, 6);
+				{
+				setState(155);
+				match(READ_STR);
+				setState(156);
+				match(OP_PAR);
+				setState(157);
+				match(CL_PAR);
+
+				emit("invokestatic Runtime/readString()Ljava/lang/String;", +1)
+				_localctx.type = 's'
 				    
 				}
 				break;
@@ -981,42 +1125,51 @@ public class ExpParser extends Parser {
 	}
 
 	public static final String _serializedATN =
-		"\3\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786\u5964\3\35\u008d\4\2\t\2"+
-		"\4\3\t\3\4\4\t\4\4\5\t\5\4\6\t\6\4\7\t\7\4\b\t\b\4\t\t\t\4\n\t\n\4\13"+
-		"\t\13\4\f\t\f\4\r\t\r\4\16\t\16\3\2\3\2\3\2\3\3\3\3\6\3\"\n\3\r\3\16\3"+
-		"#\3\3\3\3\3\4\3\4\3\4\3\4\3\4\3\4\5\4.\n\4\3\5\3\5\3\5\3\5\3\5\3\5\3\5"+
+		"\3\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786\u5964\3 \u00a4\4\2\t\2\4"+
+		"\3\t\3\4\4\t\4\4\5\t\5\4\6\t\6\4\7\t\7\4\b\t\b\4\t\t\t\4\n\t\n\4\13\t"+
+		"\13\4\f\t\f\4\r\t\r\4\16\t\16\3\2\3\2\3\2\3\3\3\3\6\3\"\n\3\r\3\16\3#"+
+		"\3\3\3\3\3\4\3\4\3\4\3\4\3\4\3\4\5\4.\n\4\3\5\3\5\3\5\3\5\3\5\3\5\3\5"+
 		"\3\5\3\5\3\5\7\5:\n\5\f\5\16\5=\13\5\3\5\3\5\3\5\3\6\3\6\3\6\3\6\3\6\3"+
-		"\7\3\7\3\7\3\7\3\7\6\7L\n\7\r\7\16\7M\3\7\3\7\3\7\3\b\3\b\3\b\3\b\3\b"+
-		"\3\b\6\bY\n\b\r\b\16\bZ\3\b\3\b\3\b\3\t\3\t\3\t\3\n\3\n\3\n\3\13\3\13"+
-		"\3\13\3\13\3\13\3\f\3\f\3\f\3\f\3\f\7\fp\n\f\f\f\16\fs\13\f\3\r\3\r\3"+
-		"\r\3\r\3\r\7\rz\n\r\f\r\16\r}\13\r\3\16\3\16\3\16\3\16\3\16\3\16\3\16"+
-		"\3\16\3\16\3\16\3\16\3\16\5\16\u008b\n\16\3\16\2\2\17\2\4\6\b\n\f\16\20"+
-		"\22\24\26\30\32\2\5\3\2\20\25\4\2\5\5\7\7\4\2\6\6\b\t\2\u008d\2\34\3\2"+
-		"\2\2\4\37\3\2\2\2\6-\3\2\2\2\b/\3\2\2\2\nA\3\2\2\2\fF\3\2\2\2\16R\3\2"+
-		"\2\2\20_\3\2\2\2\22b\3\2\2\2\24e\3\2\2\2\26j\3\2\2\2\30t\3\2\2\2\32\u008a"+
-		"\3\2\2\2\34\35\b\2\1\2\35\36\5\4\3\2\36\3\3\2\2\2\37!\b\3\1\2 \"\5\6\4"+
-		"\2! \3\2\2\2\"#\3\2\2\2#!\3\2\2\2#$\3\2\2\2$%\3\2\2\2%&\b\3\1\2&\5\3\2"+
-		"\2\2\'.\5\b\5\2(.\5\n\6\2).\5\f\7\2*.\5\16\b\2+.\5\20\t\2,.\5\22\n\2-"+
-		"\'\3\2\2\2-(\3\2\2\2-)\3\2\2\2-*\3\2\2\2-+\3\2\2\2-,\3\2\2\2.\7\3\2\2"+
-		"\2/\60\7\26\2\2\60\61\7\n\2\2\61\62\b\5\1\2\62\63\5\26\f\2\63;\b\5\1\2"+
-		"\64\65\7\r\2\2\65\66\b\5\1\2\66\67\5\26\f\2\678\b\5\1\28:\3\2\2\29\64"+
-		"\3\2\2\2:=\3\2\2\2;9\3\2\2\2;<\3\2\2\2<>\3\2\2\2=;\3\2\2\2>?\7\13\2\2"+
-		"?@\b\5\1\2@\t\3\2\2\2AB\7\35\2\2BC\7\f\2\2CD\5\26\f\2DE\b\6\1\2E\13\3"+
-		"\2\2\2FG\7\30\2\2GH\5\24\13\2HI\b\7\1\2IK\7\16\2\2JL\5\6\4\2KJ\3\2\2\2"+
-		"LM\3\2\2\2MK\3\2\2\2MN\3\2\2\2NO\3\2\2\2OP\7\17\2\2PQ\b\7\1\2Q\r\3\2\2"+
-		"\2RS\7\31\2\2ST\b\b\1\2TU\5\24\13\2UV\b\b\1\2VX\7\16\2\2WY\5\6\4\2XW\3"+
-		"\2\2\2YZ\3\2\2\2ZX\3\2\2\2Z[\3\2\2\2[\\\3\2\2\2\\]\7\17\2\2]^\b\b\1\2"+
-		"^\17\3\2\2\2_`\7\32\2\2`a\b\t\1\2a\21\3\2\2\2bc\7\33\2\2cd\b\n\1\2d\23"+
-		"\3\2\2\2ef\5\26\f\2fg\t\2\2\2gh\5\26\f\2hi\b\13\1\2i\25\3\2\2\2jq\5\30"+
-		"\r\2kl\t\3\2\2lm\5\30\r\2mn\b\f\1\2np\3\2\2\2ok\3\2\2\2ps\3\2\2\2qo\3"+
-		"\2\2\2qr\3\2\2\2r\27\3\2\2\2sq\3\2\2\2t{\5\32\16\2uv\t\4\2\2vw\5\32\16"+
-		"\2wx\b\r\1\2xz\3\2\2\2yu\3\2\2\2z}\3\2\2\2{y\3\2\2\2{|\3\2\2\2|\31\3\2"+
-		"\2\2}{\3\2\2\2~\177\7\34\2\2\177\u008b\b\16\1\2\u0080\u0081\7\n\2\2\u0081"+
-		"\u0082\5\26\f\2\u0082\u0083\7\13\2\2\u0083\u008b\3\2\2\2\u0084\u0085\7"+
-		"\35\2\2\u0085\u008b\b\16\1\2\u0086\u0087\7\27\2\2\u0087\u0088\7\n\2\2"+
-		"\u0088\u0089\7\13\2\2\u0089\u008b\b\16\1\2\u008a~\3\2\2\2\u008a\u0080"+
-		"\3\2\2\2\u008a\u0084\3\2\2\2\u008a\u0086\3\2\2\2\u008b\33\3\2\2\2\n#-"+
-		";MZq{\u008a";
+		"\7\3\7\3\7\3\7\3\7\6\7L\n\7\r\7\16\7M\3\7\3\7\3\7\3\7\3\7\6\7U\n\7\r\7"+
+		"\16\7V\3\7\3\7\5\7[\n\7\3\7\3\7\3\b\3\b\3\b\3\b\3\b\3\b\6\be\n\b\r\b\16"+
+		"\bf\3\b\3\b\3\b\3\t\3\t\3\t\3\n\3\n\3\n\3\13\3\13\3\13\3\13\3\13\3\f\3"+
+		"\f\3\f\3\f\3\f\7\f|\n\f\f\f\16\f\177\13\f\3\f\3\f\3\r\3\r\3\r\3\r\3\r"+
+		"\7\r\u0088\n\r\f\r\16\r\u008b\13\r\3\r\3\r\3\16\3\16\3\16\3\16\3\16\3"+
+		"\16\3\16\3\16\3\16\3\16\3\16\3\16\3\16\3\16\3\16\3\16\3\16\3\16\3\16\5"+
+		"\16\u00a2\n\16\3\16\2\2\17\2\4\6\b\n\f\16\20\22\24\26\30\32\2\5\3\2\20"+
+		"\25\4\2\5\5\7\7\4\2\6\6\b\t\2\u00a8\2\34\3\2\2\2\4\37\3\2\2\2\6-\3\2\2"+
+		"\2\b/\3\2\2\2\nA\3\2\2\2\fF\3\2\2\2\16^\3\2\2\2\20k\3\2\2\2\22n\3\2\2"+
+		"\2\24q\3\2\2\2\26v\3\2\2\2\30\u0082\3\2\2\2\32\u00a1\3\2\2\2\34\35\b\2"+
+		"\1\2\35\36\5\4\3\2\36\3\3\2\2\2\37!\b\3\1\2 \"\5\6\4\2! \3\2\2\2\"#\3"+
+		"\2\2\2#!\3\2\2\2#$\3\2\2\2$%\3\2\2\2%&\b\3\1\2&\5\3\2\2\2\'.\5\b\5\2("+
+		".\5\n\6\2).\5\f\7\2*.\5\16\b\2+.\5\20\t\2,.\5\22\n\2-\'\3\2\2\2-(\3\2"+
+		"\2\2-)\3\2\2\2-*\3\2\2\2-+\3\2\2\2-,\3\2\2\2.\7\3\2\2\2/\60\7\26\2\2\60"+
+		"\61\7\n\2\2\61\62\b\5\1\2\62\63\5\26\f\2\63;\b\5\1\2\64\65\7\r\2\2\65"+
+		"\66\b\5\1\2\66\67\5\26\f\2\678\b\5\1\28:\3\2\2\29\64\3\2\2\2:=\3\2\2\2"+
+		";9\3\2\2\2;<\3\2\2\2<>\3\2\2\2=;\3\2\2\2>?\7\13\2\2?@\b\5\1\2@\t\3\2\2"+
+		"\2AB\7 \2\2BC\7\f\2\2CD\5\26\f\2DE\b\6\1\2E\13\3\2\2\2FG\7\31\2\2GH\5"+
+		"\24\13\2HI\b\7\1\2IK\7\16\2\2JL\5\6\4\2KJ\3\2\2\2LM\3\2\2\2MK\3\2\2\2"+
+		"MN\3\2\2\2NO\3\2\2\2OZ\7\17\2\2PQ\b\7\1\2QR\7\35\2\2RT\7\16\2\2SU\5\6"+
+		"\4\2TS\3\2\2\2UV\3\2\2\2VT\3\2\2\2VW\3\2\2\2WX\3\2\2\2XY\7\17\2\2Y[\3"+
+		"\2\2\2ZP\3\2\2\2Z[\3\2\2\2[\\\3\2\2\2\\]\b\7\1\2]\r\3\2\2\2^_\7\32\2\2"+
+		"_`\b\b\1\2`a\5\24\13\2ab\b\b\1\2bd\7\16\2\2ce\5\6\4\2dc\3\2\2\2ef\3\2"+
+		"\2\2fd\3\2\2\2fg\3\2\2\2gh\3\2\2\2hi\7\17\2\2ij\b\b\1\2j\17\3\2\2\2kl"+
+		"\7\33\2\2lm\b\t\1\2m\21\3\2\2\2no\7\34\2\2op\b\n\1\2p\23\3\2\2\2qr\5\26"+
+		"\f\2rs\t\2\2\2st\5\26\f\2tu\b\13\1\2u\25\3\2\2\2v}\5\30\r\2wx\t\3\2\2"+
+		"xy\5\30\r\2yz\b\f\1\2z|\3\2\2\2{w\3\2\2\2|\177\3\2\2\2}{\3\2\2\2}~\3\2"+
+		"\2\2~\u0080\3\2\2\2\177}\3\2\2\2\u0080\u0081\b\f\1\2\u0081\27\3\2\2\2"+
+		"\u0082\u0089\5\32\16\2\u0083\u0084\t\4\2\2\u0084\u0085\5\32\16\2\u0085"+
+		"\u0086\b\r\1\2\u0086\u0088\3\2\2\2\u0087\u0083\3\2\2\2\u0088\u008b\3\2"+
+		"\2\2\u0089\u0087\3\2\2\2\u0089\u008a\3\2\2\2\u008a\u008c\3\2\2\2\u008b"+
+		"\u0089\3\2\2\2\u008c\u008d\b\r\1\2\u008d\31\3\2\2\2\u008e\u008f\7\36\2"+
+		"\2\u008f\u00a2\b\16\1\2\u0090\u0091\7\n\2\2\u0091\u0092\5\26\f\2\u0092"+
+		"\u0093\7\13\2\2\u0093\u0094\b\16\1\2\u0094\u00a2\3\2\2\2\u0095\u0096\7"+
+		" \2\2\u0096\u00a2\b\16\1\2\u0097\u0098\7\27\2\2\u0098\u0099\7\n\2\2\u0099"+
+		"\u009a\7\13\2\2\u009a\u00a2\b\16\1\2\u009b\u009c\7\37\2\2\u009c\u00a2"+
+		"\b\16\1\2\u009d\u009e\7\30\2\2\u009e\u009f\7\n\2\2\u009f\u00a0\7\13\2"+
+		"\2\u00a0\u00a2\b\16\1\2\u00a1\u008e\3\2\2\2\u00a1\u0090\3\2\2\2\u00a1"+
+		"\u0095\3\2\2\2\u00a1\u0097\3\2\2\2\u00a1\u009b\3\2\2\2\u00a1\u009d\3\2"+
+		"\2\2\u00a2\33\3\2\2\2\f#-;MVZf}\u0089\u00a1";
 	public static final ATN _ATN =
 		new ATNDeserializer().deserialize(_serializedATN.toCharArray());
 	static {
