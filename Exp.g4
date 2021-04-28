@@ -25,9 +25,12 @@ def emit(comand, stack_att=0, initLN="    ", endLN='\n'):
         stack_max = stack_cur
     print(initLN + comand, end=endLN)
 
-def error(msg = "", fatal = False):
+def error(line = 0, msg = "", fatal = False):
+
     global has_error
     has_error = True
+    if line != 0: msg = "in line " + str(line) + " " + msg
+
     if not fatal:   print("ERROR: " + msg, file=sys.stderr)
     else: print("FATAL ERROR: inernal error", file=sys.stderr)
 }
@@ -36,26 +39,32 @@ def error(msg = "", fatal = False):
 
 /*---------------- LEXER RULES ----------------*/
 
-COMMENT: '#' ~('\n')*          -> skip ;
-SPACE : (' '|'\t'|'\r'|'\n')+  -> skip ;
+COMMENT : '#' ~('\n')*          -> skip ;
+SPACE   : (' '|'\t'|'\r'|'\n')+  -> skip ;
 
-PLUS  : '+' ;
-TIMES : '*' ;
-MINUS : '-' ;
-OVER  : '/' ;
-REM   : '%' ;
-OP_PAR: '(' ;
-CL_PAR: ')' ;
-ATTRIB: '=' ;
-COMMA : ',' ;
-OP_CUR: '{' ;
-CL_CUR: '}' ;
-EQ    : '==' ;
-NE    : '!=' ;
-GT    : '>'  ;
-GE    : '>=' ;
-LT    : '<'  ;
-LE    : '<=' ;
+PLUS    : '+' ;
+TIMES   : '*' ;
+MINUS   : '-' ;
+OVER    : '/' ;
+REM     : '%' ;
+ATTRIB  : '=' ;
+COMMA   : ',' ;
+OP_PAR  : '(' ;
+CL_PAR  : ')' ;
+OP_CUR  : '{' ;
+CL_CUR  : '}' ;
+OP_SB   : '[' ;
+CL_SB   : ']' ;
+EQ      : '==' ;
+NE      : '!=' ;
+GT      : '>'  ;
+GE      : '>=' ;
+LT      : '<'  ;
+LE      : '<=' ;
+DOT     : '.'  ;
+
+PUSH    : 'push';
+LENGTH  : 'length';
 
 PRINT   : 'print' ;
 READ_INT: 'read_int';
@@ -110,18 +119,21 @@ if has_error:
     }
     ;
 
-statement: st_print | st_attrib | st_if | st_while | st_break | st_continue;
+statement: st_print | st_if | st_while | st_break | st_continue | st_array_new | st_array_set | st_array_push | st_attrib;
 
 st_print: PRINT OP_PAR
     {
-emit('getstatic java/lang/System/out Ljava/io/PrintStream;', +1)
+emit('getstatic java/lang/System/out Ljava/io/PrintStream;', stack_att = +1)
     }
     e1 = expression 
     {
 if $e1.type == 'i':
-    emit('invokevirtual java/io/PrintStream/print(I)V\n', -2)
+    emit('invokevirtual java/io/PrintStream/print(I)V\n', stack_att = -2)
 elif $e1.type == 's':
-    emit('invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n', -2)
+    emit('invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n', stack_att = -2)
+elif $e1.type == 'a':
+    emit("invokevirtual Array/string()Ljava/lang/String;")
+    emit("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n", stack_att = -2)
 else:
     error(fatal = True)
     }
@@ -135,8 +147,11 @@ if $e2.type == 'i':
     emit('invokevirtual java/io/PrintStream/print(I)V\n', -2)
 elif $e2.type == 's':
     emit('invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n', -2)
+elif $e1.type == 'a':
+    emit("invokevirtual Array/string()Ljava/lang/String;")
+    emit("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n", stack_att = -2)
 else:
-    error(msg = "in line" + str($COMMA.line) + "The 'break' command must be in a loop escope")
+    error(fatal = True)
     }
     )*
     CL_PAR
@@ -165,9 +180,13 @@ if my_type == $expression.type:
     else:
         error(fatal = True)
 else:
-    error(msg = "in line " + str($NAME.line) + " '"+$NAME.text+"' must be an " + ("integer" if my_type == 'i' else "string") )
+    if my_type == "i":
+        error(line = $NAME.line, msg = "'" + $NAME.text + "' must be an " + "integer")
+    elif my_type == "s":
+        error(line = $NAME.line, msg = "'" + $NAME.text + "' must be an " + "string")
+    elif my_type == "a":
+        error(line = $NAME.line, msg = "'" + $NAME.text + "' must be an " + "array")
     }
-
     ;
 
 st_if: IF comparison 
@@ -239,7 +258,64 @@ global current_begin_while
 if len(current_begin_while) > 0:
     emit("goto " + current_begin_while[-1] + " ;continue")
 else:
-    error(msg = "in line" + str($CONTINUE.line) + "the 'continue' command must be in a loop escope")
+    error(line = $CONTINUE.line, msg = "the 'continue' command must be in a loop escope")
+    }
+    ;
+
+st_array_new: NAME ATTRIB OP_SB CL_SB
+    {
+# 1. testar se a varialvel name já existe:  se não existir inclui $NAME.text na symbol_table
+if $NAME.text not in symbol_table:
+    symbol_table.append($NAME.text)
+    symbol_table_use.append(0)
+    type_table.append('a')
+else:
+    error(line = $NAME.line, msg = "'" + $NAME.text + "' is already declared")
+
+# 2. encontrar o índice de $NAME.text e gerar o bytecode 'istore index'
+index = symbol_table.index($NAME.text)
+emit("new Array", stack_att=+1)
+emit("dup", stack_att=+1)
+emit("invokespecial Array/<init>()V", stack_att=-1)
+emit("astore "+str(index),endLN='\n\n', stack_att=-1)
+    }
+    ;
+
+st_array_push: NAME DOT PUSH
+    {
+index = symbol_table.index($NAME.text)  
+emit("aload " + str(index), stack_att=+1)
+    }
+    OP_PAR expression CL_PAR
+    {
+#emit("ldc " + str(expression.text), stack_att=+1)
+emit("invokevirtual Array/push(I)V\n", stack_att=-2)
+
+    }
+    ;
+
+st_array_set: NAME 
+    { 
+if $NAME.text in symbol_table:
+    index = symbol_table.index($NAME.text)
+    emit("aload " + str(index), stack_att = +1)
+else:
+    error(line = $NAME.line, msg = "'" + $NAME.text + "' is not declared")
+    }
+        OP_SB ex1 = expression CL_SB ATTRIB ex2 = expression
+    {
+if $NAME.text in symbol_table:
+    my_type = type_table[index]
+    if my_type == 'a':
+        if $ex1.type == 'i':
+            if $ex2.type == 'i':
+                emit("invokevirtual Array/set(II)V\n", stack_att = -3)
+            else:
+                error(line = $NAME.line, msg = "arrays can store only integers and '" + $ex2.text + "' is an " + ('array' if $ex2.type == 'a' else 'string') )
+        else:
+            error(line = $NAME.line, msg = "array index must be integer")
+    else:
+        error(line = $NAME.line, msg = "only arrays can be indexable")
     }
     ;
 
@@ -248,14 +324,14 @@ comparison: e1 = expression op = ( EQ | NE | GT | GE | LT | LE ) e2 = expression
 # usa a comparação inversa para o desvio
 
 if $e1.type == 'i' and $e2.type == 'i':
-    if $op.type == ExpParser.GT  :emit("if_icmple ", stack_att=-2, endLN='')
+    if $op.type == ExpParser.GT  : emit("if_icmple ", stack_att=-2, endLN='')
     if $op.type == ExpParser.NE  : emit("if_icmpeq ", stack_att=-2, endLN='')
     if $op.type == ExpParser.GE  : emit("if_icmplt ", stack_att=-2, endLN='')
     if $op.type == ExpParser.LT  : emit("if_icmpge ", stack_att=-2, endLN='')
     if $op.type == ExpParser.EQ  : emit("if_icmpne ", stack_att=-2, endLN='')
     if $op.type == ExpParser.LE  : emit("if_icmpgt ", stack_att=-2, endLN='')
 else:
-    error(msg = "in line " + str($op.line) + " cannot mix types")
+    error(line = $op.line, msg = "cannot mix types")
     }
     ;
 
@@ -264,7 +340,9 @@ expression returns [type] : t1 = term ( op = (PLUS | MINUS) t2 = term
 if $op.type == ExpParser.PLUS  : emit('iadd', -1)
 if $op.type == ExpParser.MINUS : emit('isub', -1)
 if $t1.type != $t2.type:
-    error(msg = "in line " + str($op.line) + " cannot mix types")
+    error(line = $op.line, msg = "cannot mix types")
+elif $t1.type != 'i' or $t2.type != 'i':
+    error(line = $op.line, msg = "math operations is only for integers" )
     }
     )*
     {
@@ -288,7 +366,9 @@ $type = $f1.type
     }
     ;
 
-factor returns [type] : NUMBER
+factor returns [type] : 
+    
+    NUMBER
     {
 emit('ldc ' + $NUMBER.text, +1)
 $type = 'i'
@@ -303,21 +383,21 @@ $type = $expression.type
     {
 # encontrar o index de $NAME.text e gerar o bytecode 'iload index'
 if $NAME.text not in symbol_table:
-    error(msg =  "in line " + str($NAME.line) + "variable '" + $NAME.text + "' is not declared")
-
+    error(line = $NAME.line, msg = "variable '" + $NAME.text + "' is not declared")
 else:
     index = symbol_table.index($NAME.text)
     symbol_table_use[index] += 1
     my_type = type_table[index]
     if my_type == 'i':
         emit("iload "+ str(index), +1)
-        $type = 'i'
-    elif my_type == 's':
+        $type = my_type
+    elif my_type == 's' or my_type == 'a':
         emit("aload "+ str(index), +1)
-        $type = 's'
+        $type = my_type
     else:
         error(fatal = True)
     }
+
     | READ_INT OP_PAR CL_PAR
     {
 emit("invokestatic Runtime/readInt()I", +1)
@@ -334,5 +414,39 @@ $type = 's'
     {
 emit("invokestatic Runtime/readString()Ljava/lang/String;", +1)
 $type = 's'
+    }
+
+    | NAME 
+    {
+if $NAME.text in symbol_table:
+    index = symbol_table.index($NAME.text)
+    my_type = type_table[index]
+    if my_type == 'a':
+        emit("aload " + str(index), stack_att = +1)
+    else:
+        error(line = $NAME.line, msg = " only arrays can be indexable")
+else:
+    error(line = $NAME.line, msg = " '" + $NAME.text + "' is not declared" )
+    }
+    OP_SB expression CL_SB
+    {
+emit("invokevirtual Array/get(I)I", stack_att = -1)
+$type = 'i'
+    }
+
+    | NAME DOT LENGTH 
+    {
+if $NAME.text in symbol_table:
+    index = symbol_table.index($NAME.text)
+    my_type = type_table[index]
+    if my_type == 'a':
+        emit("aload " + str(index), +1)
+        emit("invokevirtual Array/length()I"    )
+        $type = 'i'
+    else :
+        error(line = $NAME.line, msg = "'" + $NAME.text + "' is not an array")
+else:
+    error(line = $NAME.line, msg = " '" + $NAME.text + "' is not declared" )
+$type = 'i'
     }
     ;
