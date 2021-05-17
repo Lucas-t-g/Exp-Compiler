@@ -9,6 +9,7 @@ import sys
 symbol_table = []
 symbol_table_use = []
 type_table = []
+func_table = []
 has_error = False
 
 stack_cur = 0
@@ -18,12 +19,13 @@ while_counter = 0
 current_begin_while = []
 current_end_while = []
 
+tab_count = 1
 def emit(comand, stack_att=0, initLN="    ", endLN='\n'):
-    global stack_cur, stack_max
+    global stack_cur, stack_max, tab_count
     stack_cur += stack_att
     if stack_cur > stack_max:
         stack_max = stack_cur
-    print(initLN + comand, end=endLN)
+    print(initLN*(tab_count) + comand, end=endLN)
 
 def error(line = 0, msg = "", fatal = False):
 
@@ -31,8 +33,11 @@ def error(line = 0, msg = "", fatal = False):
     has_error = True
     if line != 0: msg = "in line " + str(line) + " " + msg
 
-    if not fatal:   print("ERROR: " + msg, file=sys.stderr)
-    else: print("FATAL ERROR: inernal error", file=sys.stderr)
+    if not fatal:
+        print("ERROR: " + msg, file=sys.stderr)
+    else:
+        print("FATAL ERROR: inernal error", file=sys.stderr)
+        sys.exit(1)
 }
 
 
@@ -75,6 +80,8 @@ BREAK   : 'break';
 CONTINUE: 'continue';
 ELSE    : 'else';
 
+DEF     : 'def';
+
 NUMBER  : '0'..'9'+ ;
 STRING  : '"'~('"')*'"';
 
@@ -94,7 +101,36 @@ print('    invokenonvirtual java/lang/Object/<init>()V')
 print('    return')
 print('.end method\n')
     }
-    main ;
+    (function)*
+    main
+    ;
+
+function: DEF NAME OP_PAR CL_PAR
+    {
+global tab_count, symbol_table, type_table, symbol_table_use, func_table
+if $NAME.text not in func_table:
+    tab_count = 0
+    emit(".method public static {}()V".format($NAME.text))
+    tab_count = 1
+else:
+    error(line = $NAME.line, msg = "function '{}' is already declared".format($NAME.text) )
+    }
+    OP_CUR (statement)* CL_CUR
+    {
+emit('return')
+tab_count = 0
+if len(symbol_table) > 0 : emit('.limit locals '+ str(len(symbol_table)) )
+emit('.limit stack '+ str(stack_max))
+emit('.end method')
+emit('; symbol_table: '+ str(symbol_table))
+symbol_table = []
+symbol_table_use = []
+type_table = []
+func_table.append($NAME.text)
+emit("")
+tab_count = 1
+    }
+    ;
 
 main:
     {
@@ -119,7 +155,16 @@ if has_error:
     }
     ;
 
-statement: st_print | st_if | st_while | st_break | st_continue | st_array_new | st_array_set | st_array_push | st_attrib;
+statement: st_print | st_if | st_while | st_break | st_continue | st_array_new | st_array_set | st_array_push | st_attrib | st_call;
+
+st_call: NAME OP_PAR CL_PAR
+    {
+if $NAME.text in func_table:
+    emit("invokestatic Test/{}()V".format($NAME.text))
+else:
+    error(line = $NAME.line, msg="function '{}' is not declared".format($NAME.text))
+    }
+    ;
 
 st_print: PRINT OP_PAR
     {
@@ -248,7 +293,7 @@ global current_end_while
 if len(current_end_while) > 0:
     emit("goto " + current_end_while[-1] + " ;break")
 else:
-    error(msg = "in line " + str($BREAK.line) + "The 'break' command must be in a loop escope")
+    error(line = $BREAK.line, msg = "the 'break' command must be in a loop escope")
     }
     ;
 
@@ -339,11 +384,12 @@ expression returns [type] : t1 = term ( op = (PLUS | MINUS) t2 = term
     {
 if $op.type == ExpParser.PLUS  : emit('iadd', -1)
 if $op.type == ExpParser.MINUS : emit('isub', -1)
-if $t1.type != $t2.type:
-    error(line = $op.line, msg = "cannot mix types")
-elif $t1.type != 'i' or $t2.type != 'i':
-    error(line = $op.line, msg = "math operations is only for integers" )
-    }
+if $t1.type != 'err' and $t2.type != 'err':
+    if $t1.type != $t2.type:
+        error(line = $op.line, msg = "cannot mix types")
+    elif $t1.type != 'i' or $t2.type != 'i':
+        error(line = $op.line, msg = "math operations is only for integers" )
+        }
     )*
     {
 $type = $t1.type
@@ -356,7 +402,7 @@ if $op.type == ExpParser.TIMES : emit('imul', -1)
 if $op.type == ExpParser.OVER  : emit('idiv', -1)
 if $op.type == ExpParser.REM   : emit('irem', -1)
 if $f1.type != $f2.type:
-    error(msg = "in line " + str($op.line) + " cannot mix types")
+    error(line = $op.line, msg = "cannot mix types")
 elif $f1.type != 'i' or $f2.type != 'i':
     error(msg = "in line " + str($op.line) + " math operations is only for integers" )
     }
@@ -384,6 +430,7 @@ $type = $expression.type
 # encontrar o index de $NAME.text e gerar o bytecode 'iload index'
 if $NAME.text not in symbol_table:
     error(line = $NAME.line, msg = "variable '" + $NAME.text + "' is not declared")
+    $type = 'err'
 else:
     index = symbol_table.index($NAME.text)
     symbol_table_use[index] += 1
