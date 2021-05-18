@@ -10,8 +10,8 @@ else
             rm -f Test.class
         fi
     else
-        # rm -f Test.j
-        echo "deu ruim"
+        rm -f Test.j
+        # echo "deu ruim"
     fi
 fi
 

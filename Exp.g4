@@ -10,6 +10,8 @@ symbol_table = []
 symbol_table_use = []
 type_table = []
 func_table = []
+func_num_args = []
+
 has_error = False
 
 stack_cur = 0
@@ -105,13 +107,18 @@ print('.end method\n')
     main
     ;
 
-function: DEF NAME OP_PAR CL_PAR
+function: DEF NAME OP_PAR (parameters)? CL_PAR
     {
-global tab_count, symbol_table, type_table, symbol_table_use, func_table
+global tab_count, symbol_table, type_table, symbol_table_use, func_table, func_num_args
 if $NAME.text not in func_table:
     tab_count = 0
-    emit(".method public static {}()V".format($NAME.text))
+    func_table.append($NAME.text)
+    num_args = len(symbol_table)
+    func_num_args.append(num_args)
+    emit(".method public static {}({})V".format($NAME.text, "I"*num_args))
     tab_count = 1
+    #for i in range(len(symbol_table)):
+    #    emit("istore "+ str(i) + '\n', -1)
 else:
     error(line = $NAME.line, msg = "function '{}' is already declared".format($NAME.text) )
     }
@@ -126,10 +133,30 @@ emit('; symbol_table: '+ str(symbol_table))
 symbol_table = []
 symbol_table_use = []
 type_table = []
-func_table.append($NAME.text)
 emit("")
 tab_count = 1
     }
+    ;
+
+parameters: NAME 
+    {
+if $NAME.text not in symbol_table:
+    symbol_table.append($NAME.text)
+    symbol_table_use.append(0)
+    type_table.append('i')
+else:
+    error(line = $NAME.line, msg = "parameter names must be unique")
+    }
+    (COMMA NAME 
+    {
+if $NAME.text not in symbol_table:
+    symbol_table.append($NAME.text)
+    symbol_table_use.append(0)
+    type_table.append('i')
+else:
+    error(line = $NAME.line, msg = "parameter names must be unique")
+    }
+    )*
     ;
 
 main:
@@ -157,12 +184,38 @@ if has_error:
 
 statement: st_print | st_if | st_while | st_break | st_continue | st_array_new | st_array_set | st_array_push | st_attrib | st_call;
 
-st_call: NAME OP_PAR CL_PAR
+st_call: NAME OP_PAR (args = arguments
+    {
+if $args.types.count('i') != len($args.types):
+    error(line = $NAME.line, msg = "all arguments must be integer")
+    }
+    )? CL_PAR
     {
 if $NAME.text in func_table:
-    emit("invokestatic Test/{}()V".format($NAME.text))
+    try:
+        args_count = len($args.types)
+    except:
+        args_count = 0
+    index = func_table.index($NAME.text)
+    if args_count != func_num_args[index]:
+        error(line = $NAME.line, msg = "wrong number of arguments")
+    emit("invokestatic Test/{}({})V".format($NAME.text, "I"*func_num_args[index]))
 else:
     error(line = $NAME.line, msg="function '{}' is not declared".format($NAME.text))
+    }
+    ;
+
+arguments returns [types]  : e1 = expression 
+    {
+types = [$e1.type]
+    }
+( COMMA e2 = expression
+    {
+types.append($e2.type)
+    }
+    )*
+    {
+$types = types
     }
     ;
 
