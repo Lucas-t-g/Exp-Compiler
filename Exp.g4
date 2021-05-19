@@ -9,17 +9,21 @@ import sys
 symbol_table = []
 symbol_table_use = []
 type_table = []
+
 func_table = []
 func_num_args = []
+func_types = []
 
-has_error = False
-
+must_have_return = False
+has_return = False
 stack_cur = 0
 stack_max = 0
 if_counter = 0
 while_counter = 0
 current_begin_while = []
 current_end_while = []
+
+has_error = False
 
 tab_count = 1
 def emit(comand, stack_att=0, initLN="    ", endLN='\n'):
@@ -81,6 +85,8 @@ WHILE   : 'while';
 BREAK   : 'break';
 CONTINUE: 'continue';
 ELSE    : 'else';
+INT     : 'int';
+RETURN  : 'return';
 
 DEF     : 'def';
 
@@ -107,32 +113,50 @@ print('.end method\n')
     main
     ;
 
-function: DEF NAME OP_PAR (parameters)? CL_PAR
+function: DEF NAME OP_PAR (parameters)? CL_PAR ( INT
     {
-global tab_count, symbol_table, type_table, symbol_table_use, func_table, func_num_args
+global tab_count, symbol_table, type_table, symbol_table_use, func_table, func_num_args, must_have_return, has_return, stack_cur, stack_max, current_begin_while, current_end_while
+must_have_return = True
+    }    
+    )?
+    {
 if $NAME.text not in func_table:
     tab_count = 0
     func_table.append($NAME.text)
+    func_types.append('i' if must_have_return else 'v' )
     num_args = len(symbol_table)
     func_num_args.append(num_args)
-    emit(".method public static {}({})V".format($NAME.text, "I"*num_args))
+    return_func = "I" if must_have_return else "V"
+    emit(".method public static {}({}){}".format($NAME.text, "I"*num_args, return_func))
     tab_count = 1
     #for i in range(len(symbol_table)):
-    #    emit("istore "+ str(i) + '\n', -1)
+    #    emit("istore "+ str(i) + '\n', stack_att = -1)
 else:
     error(line = $NAME.line, msg = "function '{}' is already declared".format($NAME.text) )
     }
     OP_CUR (statement)* CL_CUR
     {
+if must_have_return == True:
+    if has_return == False:
+        error(line = $NAME.line, msg = "missing return statement in returning function '{}'".format($NAME.text))
+
 emit('return')
 tab_count = 0
 if len(symbol_table) > 0 : emit('.limit locals '+ str(len(symbol_table)) )
 emit('.limit stack '+ str(stack_max))
 emit('.end method')
 emit('; symbol_table: '+ str(symbol_table))
+
+must_have_return = False
+has_return = False
+
+stack_cur = 0
+current_begin_while = []
+current_end_while = []
 symbol_table = []
 symbol_table_use = []
 type_table = []
+
 emit("")
 tab_count = 1
     }
@@ -165,7 +189,6 @@ print('.method public static main([Ljava/lang/String;)V\n')
     }
     (statement )+
     {
-
 print('    return')
 print('.limit stack', stack_max)
 if len(symbol_table) > 0 : print('.limit locals', len(symbol_table))
@@ -182,7 +205,20 @@ if has_error:
     }
     ;
 
-statement: st_print | st_if | st_while | st_break | st_continue | st_array_new | st_array_set | st_array_push | st_attrib | st_call;
+statement: st_print | st_if | st_while | st_break | st_continue | st_array_new | st_array_set 
+         | st_array_push | st_attrib | st_call | st_return;
+
+st_return: RETURN e1 = expression
+    {
+global has_return, must_have_return
+if must_have_return == False:
+    error(line = $RETURN.line, msg = "a void function does not return a value")
+if $e1.type != 'i':
+    error(line = $RETURN.line, msg = "return value must be of the integer type")
+has_return = True
+emit("ireturn", stack_att = +1)
+    }
+    ;
 
 st_call: NAME OP_PAR (args = arguments
     {
@@ -197,9 +233,11 @@ if $NAME.text in func_table:
     except:
         args_count = 0
     index = func_table.index($NAME.text)
+    if func_types[index] == 'i':
+        error(line = $NAME.line, msg = "function '{}' returns a value, and it cannot be ignored".format($NAME.text))
     if args_count != func_num_args[index]:
         error(line = $NAME.line, msg = "wrong number of arguments")
-    emit("invokestatic Test/{}({})V".format($NAME.text, "I"*func_num_args[index]))
+    emit("invokestatic Test/{}({})V".format($NAME.text, "I"*func_num_args[index]), stack_att = -func_num_args[index])
 else:
     error(line = $NAME.line, msg="function '{}' is not declared".format($NAME.text))
     }
@@ -209,7 +247,7 @@ arguments returns [types]  : e1 = expression
     {
 types = [$e1.type]
     }
-( COMMA e2 = expression
+    ( COMMA e2 = expression
     {
 types.append($e2.type)
     }
@@ -237,14 +275,14 @@ else:
     }
     ( COMMA
     {
-emit('getstatic java/lang/System/out Ljava/io/PrintStream;', +1)
+emit('getstatic java/lang/System/out Ljava/io/PrintStream;', stack_att = +1)
     }
     e2 = expression
     {
 if $e2.type == 'i':
-    emit('invokevirtual java/io/PrintStream/print(I)V\n', -2)
+    emit('invokevirtual java/io/PrintStream/print(I)V\n', stack_att = -2)
 elif $e2.type == 's':
-    emit('invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n', -2)
+    emit('invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n', stack_att = -2)
 elif $e1.type == 'a':
     emit("invokevirtual Array/string()Ljava/lang/String;")
     emit("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n", stack_att = -2)
@@ -254,8 +292,8 @@ else:
     )*
     CL_PAR
     {
-emit('getstatic java/lang/System/out Ljava/io/PrintStream;', +1)
-emit('invokevirtual java/io/PrintStream/println()V\n', -1)
+emit('getstatic java/lang/System/out Ljava/io/PrintStream;', stack_att = +1)
+emit('invokevirtual java/io/PrintStream/println()V\n', stack_att = -1)
     }
     ;
 
@@ -272,9 +310,9 @@ index = symbol_table.index($NAME.text)
 my_type = type_table[index]
 if my_type == $expression.type:
     if my_type == 'i':
-        emit("istore "+ str(index) + '\n', -1)
+        emit("istore "+ str(index) + '\n', stack_att = -1)
     elif my_type == 's':
-        emit("astore "+ str(index) + '\n', -1)
+        emit("astore "+ str(index) + '\n', stack_att = -1)
     else:
         error(fatal = True)
 else:
@@ -372,23 +410,21 @@ else:
 
 # 2. encontrar o índice de $NAME.text e gerar o bytecode 'istore index'
 index = symbol_table.index($NAME.text)
-emit("new Array", stack_att=+1)
-emit("dup", stack_att=+1)
-emit("invokespecial Array/<init>()V", stack_att=-1)
-emit("astore "+str(index),endLN='\n\n', stack_att=-1)
+emit("new Array", stack_att = +1)
+emit("dup", stack_att = +1)
+emit("invokespecial Array/<init>()V", stack_att = -1)
+emit("astore "+str(index),endLN='\n\n', stack_att = -1)
     }
     ;
 
 st_array_push: NAME DOT PUSH
     {
 index = symbol_table.index($NAME.text)  
-emit("aload " + str(index), stack_att=+1)
+emit("aload " + str(index), stack_att = +1)
     }
     OP_PAR expression CL_PAR
     {
-#emit("ldc " + str(expression.text), stack_att=+1)
-emit("invokevirtual Array/push(I)V\n", stack_att=-2)
-
+emit("invokevirtual Array/push(I)V\n", stack_att = -2)
     }
     ;
 
@@ -435,8 +471,8 @@ else:
 
 expression returns [type] : t1 = term ( op = (PLUS | MINUS) t2 = term
     {
-if $op.type == ExpParser.PLUS  : emit('iadd', -1)
-if $op.type == ExpParser.MINUS : emit('isub', -1)
+if $op.type == ExpParser.PLUS  : emit('iadd', stack_att = -1)
+if $op.type == ExpParser.MINUS : emit('isub', stack_att = -1)
 if $t1.type != 'err' and $t2.type != 'err':
     if $t1.type != $t2.type:
         error(line = $op.line, msg = "cannot mix types")
@@ -451,9 +487,9 @@ $type = $t1.type
 
 term returns [type]: f1 = factor ( op = (TIMES | OVER | REM ) f2 = factor
     {
-if $op.type == ExpParser.TIMES : emit('imul', -1)
-if $op.type == ExpParser.OVER  : emit('idiv', -1)
-if $op.type == ExpParser.REM   : emit('irem', -1)
+if $op.type == ExpParser.TIMES : emit('imul', stack_att = -1)
+if $op.type == ExpParser.OVER  : emit('idiv', stack_att = -1)
+if $op.type == ExpParser.REM   : emit('irem', stack_att = -1)
 if $f1.type != $f2.type:
     error(line = $op.line, msg = "cannot mix types")
 elif $f1.type != 'i' or $f2.type != 'i':
@@ -469,7 +505,7 @@ factor returns [type] :
     
     NUMBER
     {
-emit('ldc ' + $NUMBER.text, +1)
+emit('ldc ' + $NUMBER.text, stack_att = +1)
 $type = 'i'
     }
 
@@ -489,10 +525,10 @@ else:
     symbol_table_use[index] += 1
     my_type = type_table[index]
     if my_type == 'i':
-        emit("iload "+ str(index), +1)
+        emit("iload "+ str(index), stack_att = +1)
         $type = my_type
     elif my_type == 's' or my_type == 'a':
-        emit("aload "+ str(index), +1)
+        emit("aload "+ str(index), stack_att = +1)
         $type = my_type
     else:
         error(fatal = True)
@@ -500,13 +536,13 @@ else:
 
     | READ_INT OP_PAR CL_PAR
     {
-emit("invokestatic Runtime/readInt()I", +1)
+emit("invokestatic Runtime/readInt()I", stack_att = +1)
 $type = 'i'
     }
 
     | STRING
     {
-emit('ldc '+ $STRING.text, +1)
+emit('ldc '+ $STRING.text, stack_att = +1)
 $type = 's'
     }
 
@@ -540,13 +576,36 @@ if $NAME.text in symbol_table:
     index = symbol_table.index($NAME.text)
     my_type = type_table[index]
     if my_type == 'a':
-        emit("aload " + str(index), +1)
-        emit("invokevirtual Array/length()I"    )
+        emit("aload " + str(index), stack_att = +1)
+        emit("invokevirtual Array/length()I")
         $type = 'i'
     else :
         error(line = $NAME.line, msg = "'" + $NAME.text + "' is not an array")
 else:
     error(line = $NAME.line, msg = " '" + $NAME.text + "' is not declared" )
+$type = 'i'
+    }
+
+    | NAME OP_PAR (args = arguments
+    {
+if $args.types.count('i') != len($args.types):
+    error(line = $NAME.line, msg = "all arguments must be integer")
+    }
+    )? CL_PAR
+    {
+if $NAME.text in func_table:
+    try:
+        args_count = len($args.types)
+    except:
+        args_count = 0
+    index = func_table.index($NAME.text)
+    if func_types[index] == 'v':
+        error(line = $NAME.line, msg = "void function '{}' does not return a value".format($NAME.text))
+    if args_count != func_num_args[index]:
+        error(line = $NAME.line, msg = "wrong number of arguments")
+    emit("invokestatic Test/{}({})I".format($NAME.text, "I"*func_num_args[index]), stack_att = -func_num_args[index]+1)
+else:
+    error(line = $NAME.line, msg="function '{}' is not declared".format($NAME.text))
 $type = 'i'
     }
     ;
